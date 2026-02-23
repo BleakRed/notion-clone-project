@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  ownedWorkspaces Workspace[] @relation("Owner")
+  memberships     WorkspaceMember[]
+  createdPages    Page[]
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  owner     User     @relation("Owner", fields: [ownerId], references: [id])
+  members   WorkspaceMember[]
+  pages     Page[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        String   @default("MEMBER") // OWNER, ADMIN, MEMBER
+  joinedAt    DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([workspaceId, userId])
+}
+
+model Page {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   // JSON string or Markdown
+  workspaceId String
+  authorId    String
+  parentId    String?  // For nesting
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  author      User      @relation(fields: [authorId], references: [id])
+  parent      Page?     @relation("PageHierarchy", fields: [parentId], references: [id])
+  children    Page[]    @relation("PageHierarchy")
+}
