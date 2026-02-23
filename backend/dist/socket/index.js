@@ -11,6 +11,16 @@ const setupSocket = (io) => {
         socket.on('leave-page', (pageId) => {
             socket.leave(pageId);
             console.log(`Socket ${socket.id} left page ${pageId}`);
+            // Notify others that this user left
+            socket.to(pageId).emit('user-left', socket.id);
+        });
+        socket.on('cursor-move', (data) => {
+            socket.to(data.pageId).emit('cursor-updated', {
+                userId: socket.id,
+                userName: data.userName,
+                x: data.x,
+                y: data.y
+            });
         });
         socket.on('update-page', (data) => {
             // Broadcast to others in the room

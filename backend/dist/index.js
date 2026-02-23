@@ -11,6 +11,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const auth_1 = __importDefault(require("./routes/auth"));
 const workspace_1 = __importDefault(require("./routes/workspace"));
 const page_1 = __importDefault(require("./routes/page"));
+const upload_1 = __importDefault(require("./routes/upload"));
 const socket_1 = require("./socket");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -23,10 +24,12 @@ const io = new socket_io_1.Server(server, {
 });
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
+app.use('/uploads', express_1.default.static('uploads'));
 // Routes
 app.use('/api/auth', auth_1.default);
 app.use('/api/workspaces', workspace_1.default);
 app.use('/api/pages', page_1.default);
+app.use('/api/upload', upload_1.default);
 // Socket
 (0, socket_1.setupSocket)(io);
 const PORT = process.env.PORT || 8000;

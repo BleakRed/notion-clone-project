@@ -4,11 +4,18 @@ This project is a full-stack, real-time collaborative workspace application insp
 
 ## 🚀 Features
 
-### 1. **Real-time Collaboration**
+### 1. **Real-time Collaboration & Markdown**
 - **Live Editing:** Multiple users in the same workspace can edit the same page simultaneously. Changes are broadcasted instantly using **Socket.io**.
-- **Room-based Synchronization:** Users only receive updates for the specific page they are currently viewing.
+- **Live Cursors:** See other users' cursor movements in real-time, making collaboration feel alive.
+- **Obsidian-like Rendering:** Supports **Markdown** with code syntax highlighting and GitHub-flavored markdown (GFM).
+- **Toggle View:** Switch between **Edit Mode** (monospaced editor) and **Preview Mode** (beautifully rendered document).
 
-### 2. **Workspace & Member Management**
+### 2. **Rich Media & UI/UX**
+- **Image Uploads:** Easily upload images from your local machine directly into pages.
+- **Dark Mode Support:** A built-in toggle to switch between Light and Dark themes for a comfortable viewing experience.
+- **Visual Embedding:** Images are automatically embedded into the page content using Markdown syntax.
+
+### 3. **Workspace & Member Management**
 - **Personal & Shared Spaces:** Users can create multiple workspaces.
 - **Owner-Only Privileges:** 
     - Only the workspace **Owner** can invite new members via email.
