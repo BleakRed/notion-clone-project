@@ -47,7 +47,7 @@ router.get('/', auth_1.authenticateToken, (req, res) => __awaiter(void 0, void 0
                         members: {
                             include: {
                                 user: {
-                                    select: { id: true, email: true, name: true }
+                                    select: { id: true, email: true, name: true, username: true, avatarUrl: true }
                                 }
                             }
                         }
@@ -70,7 +70,7 @@ router.get('/:id/members', auth_1.authenticateToken, (req, res) => __awaiter(voi
             where: { workspaceId },
             include: {
                 user: {
-                    select: { id: true, email: true, name: true }
+                    select: { id: true, email: true, name: true, username: true, avatarUrl: true }
                 }
             }
         });

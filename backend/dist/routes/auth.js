@@ -16,23 +16,31 @@ const express_1 = require("express");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
+const auth_1 = require("../middleware/auth");
 const prisma = new client_1.PrismaClient();
 const router = (0, express_1.Router)();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { email, password, name } = req.body;
+        const { email, password, confirmPassword, name, username } = req.body;
         if (!email || !password)
             return res.status(400).json({ error: 'Email and password required' });
-        const existing = yield prisma.user.findUnique({ where: { email } });
-        if (existing)
+        if (password !== confirmPassword)
+            return res.status(400).json({ error: 'Passwords do not match' });
+        const existingEmail = yield prisma.user.findUnique({ where: { email } });
+        if (existingEmail)
             return res.status(400).json({ error: 'Email already exists' });
+        if (username) {
+            const existingUser = yield prisma.user.findUnique({ where: { username } });
+            if (existingUser)
+                return res.status(400).json({ error: 'Username already exists' });
+        }
         const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
         const user = yield prisma.user.create({
-            data: { email, password: hashedPassword, name }
+            data: { email, password: hashedPassword, name, username }
         });
         const token = jsonwebtoken_1.default.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+        res.json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, avatarUrl: user.avatarUrl } });
     }
     catch (error) {
         console.error(error);
@@ -51,7 +59,28 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (!valid)
             return res.status(400).json({ error: 'Invalid credentials' });
         const token = jsonwebtoken_1.default.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+        res.json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, avatarUrl: user.avatarUrl } });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}));
+router.put('/profile', auth_1.authenticateToken, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.userId;
+        const { username, avatarUrl, name } = req.body;
+        if (username) {
+            const existingUser = yield prisma.user.findUnique({ where: { username } });
+            if (existingUser && existingUser.id !== userId) {
+                return res.status(400).json({ error: 'Username already exists' });
+            }
+        }
+        const user = yield prisma.user.update({
+            where: { id: userId },
+            data: { username, avatarUrl, name }
+        });
+        res.json({ id: user.id, email: user.email, name: user.name, username: user.username, avatarUrl: user.avatarUrl });
     }
     catch (error) {
         console.error(error);

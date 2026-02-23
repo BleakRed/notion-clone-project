@@ -40,7 +40,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
             members: {
               include: {
                 user: {
-                  select: { id: true, email: true, name: true }
+                  select: { id: true, email: true, name: true, username: true, avatarUrl: true }
                 }
               }
             }
@@ -63,7 +63,7 @@ router.get('/:id/members', authenticateToken, async (req: AuthRequest, res: Resp
       where: { workspaceId },
       include: {
         user: {
-          select: { id: true, email: true, name: true }
+          select: { id: true, email: true, name: true, username: true, avatarUrl: true }
         }
       }
     });
