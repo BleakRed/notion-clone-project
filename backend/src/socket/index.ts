@@ -4,6 +4,7 @@ export const setupSocket = (io: Server) => {
   io.on('connection', (socket: Socket) => {
     console.log('User connected:', socket.id);
 
+    // Page Events
     socket.on('join-page', (pageId: string) => {
       socket.join(pageId);
       console.log(`Socket ${socket.id} joined page ${pageId}`);
@@ -12,7 +13,6 @@ export const setupSocket = (io: Server) => {
     socket.on('leave-page', (pageId: string) => {
       socket.leave(pageId);
       console.log(`Socket ${socket.id} left page ${pageId}`);
-      // Notify others that this user left
       socket.to(pageId).emit('user-left', socket.id);
     });
 
@@ -26,8 +26,54 @@ export const setupSocket = (io: Server) => {
     });
 
     socket.on('update-page', (data: { pageId: string, content: string }) => {
-      // Broadcast to others in the room
       socket.to(data.pageId).emit('page-updated', data.content);
+    });
+
+    // Drawing Events
+    socket.on('join-drawing', async (workspaceId: string) => {
+        const roomName = `drawing-${workspaceId}`;
+        const existingUsers = await io.in(roomName).fetchSockets();
+        
+        socket.join(roomName);
+        console.log(`Socket ${socket.id} joined drawing workspace ${workspaceId}`);
+
+        // If there are other users, request state from one of them
+        if (existingUsers.length > 0) {
+            const firstUser = existingUsers[0].id;
+            io.to(firstUser).emit('request-canvas-state', socket.id);
+        }
+    });
+
+    socket.on('canvas-state-sent', (data: { targetId: string, state: string }) => {
+        io.to(data.targetId).emit('canvas-state-received', data.state);
+    });
+
+    socket.on('draw-stroke', (data: { workspaceId: string, x1: number, y1: number, x2: number, y2: number, color: string, lineWidth: number }) => {
+        socket.to(`drawing-${data.workspaceId}`).emit('stroke-received', data);
+    });
+
+    socket.on('clear-drawing', (workspaceId: string) => {
+        socket.to(`drawing-${workspaceId}`).emit('drawing-cleared');
+    });
+
+    // Chat Events
+    socket.on('join-chat', (workspaceId: string) => {
+        socket.join(`chat-${workspaceId}`);
+        console.log(`Socket ${socket.id} joined chat ${workspaceId}`);
+    });
+
+    socket.on('send-message', (data: { workspaceId: string, message: any }) => {
+        socket.to(`chat-${data.workspaceId}`).emit('message-received', data.message);
+    });
+
+    // Kanban Events
+    socket.on('join-kanban', (boardId: string) => {
+        socket.join(`kanban-${boardId}`);
+        console.log(`Socket ${socket.id} joined kanban board ${boardId}`);
+    });
+
+    socket.on('update-kanban', (boardId: string) => {
+        socket.to(`kanban-${boardId}`).emit('kanban-updated');
     });
 
     socket.on('disconnect', () => {

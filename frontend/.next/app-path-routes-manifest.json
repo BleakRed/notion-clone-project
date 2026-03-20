@@ -1,0 +1,6 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/workspace/[id]/page": "/workspace/[id]",
+  "/dashboard/page": "/dashboard",
+  "/page": "/"
+}

@@ -10,9 +10,57 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github.css';
 import { 
-  Eye, Edit2, Image as ImageIcon, Plus, Home, UserMinus, Send, 
-  Settings, LogOut, Sun, Moon, User as UserIcon, Camera, X 
+  Eye, Edit2, Image as ImageIcon, Menu, X, Camera, User as UserIcon, Settings, Plus
 } from 'lucide-react';
+
+import Sidebar from '../../../components/Sidebar';
+import FileExplorer from '../../../components/FileExplorer';
+import DrawingCanvas from '../../../components/DrawingCanvas';
+import Chat from '../../../components/Chat';
+import KanbanBoard from '../../../components/KanbanBoard';
+
+// Helper to get caret coordinates in a textarea
+function getCaretCoordinates(element: HTMLTextAreaElement, position: number) {
+  const div = document.createElement('div');
+  const style = window.getComputedStyle(element);
+  
+  const properties = [
+    'direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+    'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'borderStyle',
+    'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+    'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize', 'fontSizeAdjust',
+    'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent', 'textDecoration',
+    'letterSpacing', 'wordSpacing', 'tabSize', 'MozTabSize'
+  ];
+
+  div.style.position = 'absolute';
+  div.style.visibility = 'hidden';
+  div.style.whiteSpace = 'pre-wrap';
+  div.style.wordBreak = 'break-word';
+
+  properties.forEach(prop => {
+    // @ts-ignore
+    div.style[prop] = style[prop];
+  });
+
+  div.textContent = element.value.substring(0, position);
+  
+  const span = document.createElement('span');
+  span.textContent = element.value.substring(position) || '.';
+  div.appendChild(span);
+
+  document.body.appendChild(div);
+  const rect = element.getBoundingClientRect();
+  const spanRect = span.getBoundingClientRect();
+  const divRect = div.getBoundingClientRect();
+  
+  const x = spanRect.left - divRect.left;
+  const y = spanRect.top - divRect.top;
+
+  document.body.removeChild(div);
+  
+  return { x, y };
+}
 
 interface Page {
   id: string;
@@ -27,13 +75,15 @@ export default function Workspace() {
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
   const [content, setContent] = useState('');
   const [isPreview, setIsPreview] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
   const [user, setUser] = useState<any>(null);
   const [workspace, setWorkspace] = useState<any>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [cursors, setCursors] = useState<Record<string, { x: number, y: number, userName: string }>>({});
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('pages');
   const [newUsername, setNewUsername] = useState('');
   const [newAvatarUrl, setNewAvatarUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,8 +113,14 @@ export default function Workspace() {
   }, [workspaceId]);
 
   useEffect(() => {
-    if (selectedPage && user) {
-      socket.connect();
+    if (user) {
+        socket.connect();
+        return () => { socket.disconnect(); };
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedPage && user && activeTab === 'pages') {
       socket.emit('join-page', selectedPage.id);
 
       socket.on('page-updated', (newContent: string) => {
@@ -91,10 +147,17 @@ export default function Workspace() {
         socket.off('page-updated');
         socket.off('cursor-updated');
         socket.off('user-left');
-        socket.disconnect();
       };
     }
-  }, [selectedPage, user]);
+    
+    if (activeTab === 'canvas' && user && workspaceId) {
+        socket.emit('join-drawing', workspaceId);
+        return () => {
+            // No need to emit leave-drawing unless we add a leave-drawing socket event
+            // But we should at least not fight with other rooms
+        };
+    }
+  }, [selectedPage, user, activeTab, workspaceId]);
 
   const toggleDarkMode = () => {
     const next = !isDarkMode;
@@ -108,12 +171,15 @@ export default function Workspace() {
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (selectedPage && user) {
+  const handleCaretMove = (e: React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent<HTMLTextAreaElement>) => {
+    if (selectedPage && user && activeTab === 'pages') {
+      const target = e.target as HTMLTextAreaElement;
+      const { x, y } = getCaretCoordinates(target, target.selectionStart);
+      
       socket.emit('cursor-move', {
         pageId: selectedPage.id,
-        x: e.clientX,
-        y: e.clientY,
+        x,
+        y,
         userName: user.username || user.email.split('@')[0]
       });
     }
@@ -149,6 +215,8 @@ export default function Workspace() {
       const { data } = await api.get(`/pages/${page.id}`);
       setSelectedPage(data);
       setContent(data.content);
+      setActiveTab('pages');
+      setIsSidebarOpen(false); // Close sidebar on mobile after selection
     } catch (err) {}
   };
 
@@ -159,6 +227,8 @@ export default function Workspace() {
       setSelectedPage(data);
       setContent('');
       setIsPreview(false);
+      setActiveTab('pages');
+      setIsSidebarOpen(false);
     } catch (err) {}
   };
 
@@ -168,6 +238,20 @@ export default function Workspace() {
       socket.emit('update-page', { pageId: selectedPage.id, content: newContent });
       api.put(`/pages/${selectedPage.id}`, { content: newContent });
     }
+  };
+
+  const handleResourceSelect = (file: any) => {
+    if (!selectedPage) return;
+    
+    let markdown = '';
+    if (file.type.startsWith('image/')) {
+        markdown = `\n![${file.name}](${file.url})\n`;
+    } else {
+        markdown = ` [${file.name}](${file.url}) `;
+    }
+    
+    updateContent(content + markdown);
+    setIsFilePickerOpen(false);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,17 +298,16 @@ export default function Workspace() {
           setUser(data);
           Cookies.set('user', JSON.stringify(data));
           setIsProfileOpen(false);
-          fetchMembers(); // Refresh members list to show new profile
+          fetchMembers();
           alert('Profile updated!');
       } catch (err: any) {
           alert(err.response?.data?.error || 'Failed to update profile');
       }
   };
 
-  const inviteUser = async () => {
+  const inviteUser = async (email: string) => {
     try {
-      await api.post(`/workspaces/${workspaceId}/invite`, { email: inviteEmail });
-      setInviteEmail('');
+      await api.post(`/workspaces/${workspaceId}/invite`, { email });
       fetchMembers();
       alert('Invited successfully!');
     } catch (err: any) {
@@ -248,144 +331,162 @@ export default function Workspace() {
     router.push('/');
   };
 
-  const isOwner = useMemo(() => workspace?.ownerId === user?.id, [workspace, user]);
-
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-950 text-black dark:text-slate-100 font-sans transition-colors relative overflow-hidden" onMouseMove={handleMouseMove}>
-      {/* Remote Cursors */}
-      {Object.entries(cursors).map(([id, cursor]) => (
-        <div 
-          key={id} 
-          className="cursor-label"
-          style={{ left: cursor.x, top: cursor.y, transition: 'all 0.1s linear' }}
-        >
-          <div className="cursor-dot shadow-sm" />
-          <div className="cursor-name shadow-lg">{cursor.userName}</div>
-        </div>
-      ))}
+    <div className="flex h-screen bg-white dark:bg-slate-950 text-black dark:text-slate-100 font-sans transition-colors relative overflow-hidden">
+      <Sidebar 
+        user={user}
+        workspace={workspace}
+        pages={pages}
+        members={members}
+        selectedPage={selectedPage}
+        activeTab={activeTab}
+        isDarkMode={isDarkMode}
+        isOpen={isSidebarOpen}
+        onSelectPage={selectPage}
+        onCreatePage={createPage}
+        onTabChange={(tab) => { setActiveTab(tab); setIsSidebarOpen(false); }}
+        onToggleDarkMode={toggleDarkMode}
+        onToggleProfile={() => setIsProfileOpen(true)}
+        onInvite={inviteUser}
+        onRemoveMember={removeMember}
+        onLogout={logout}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
-      {/* Sidebar */}
-      <div className="w-68 border-r dark:border-slate-800 flex flex-col p-4 bg-slate-50 dark:bg-slate-900 shadow-inner">
-        <div className="flex justify-between items-center mb-6 px-1">
-          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsProfileOpen(true)}>
-             <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-white dark:border-slate-700 overflow-hidden shadow-sm flex items-center justify-center relative">
-                 {user?.avatarUrl ? (
-                     <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                 ) : (
-                     <UserIcon className="text-slate-400" size={20} />
-                 )}
-                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                     <Settings size={14} className="text-white" />
-                 </div>
-             </div>
-             <div className="flex flex-col">
-                <span className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
-                    {user?.username || user?.email.split('@')[0]}
-                </span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Profile Settings</span>
-             </div>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <button 
-              onClick={toggleDarkMode} 
-              className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-all shadow-sm"
-              title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
-            >
-              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col bg-white dark:bg-slate-950 overflow-hidden relative">
+        {/* Mobile Header */}
+        <div className="lg:hidden flex items-center justify-between p-4 border-b dark:border-slate-800">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                <Menu size={24} />
             </button>
-            <button onClick={() => router.push('/dashboard')} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-all" title="Home">
-                <Home size={18} />
-            </button>
-          </div>
+            <h1 className="font-bold truncate max-w-[200px]">{workspace?.name || 'Workspace'}</h1>
+            <div className="w-10" /> {/* Spacer */}
         </div>
 
-        <div className="px-1 mb-6">
-            <h2 className="font-extrabold truncate text-lg text-slate-900 dark:text-slate-100 tracking-tight">{workspace?.name || 'Workspace'}</h2>
-        </div>
-
-        <button 
-          onClick={createPage} 
-          className="flex items-center gap-3 text-left p-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl mb-6 font-bold shadow-sm border border-slate-200 dark:border-slate-700 transition-all text-slate-700 dark:text-slate-200 active:scale-95"
-        >
-          <div className="bg-blue-600 p-1 rounded-md text-white"><Plus size={16} /></div>
-          New Page
-        </button>
-
-        <div className="flex-1 overflow-y-auto space-y-1.5 px-1 scrollbar-hide">
-          {pages.map(p => (
-            <div
-              key={p.id}
-              onClick={() => selectPage(p)}
-              className={`p-2.5 rounded-lg cursor-pointer truncate text-sm transition-all flex items-center gap-2 ${selectedPage?.id === p.id ? 'bg-white dark:bg-slate-800 shadow-sm font-bold border border-slate-200 dark:border-slate-700 text-blue-600' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${selectedPage?.id === p.id ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`} />
-              {p.title || 'Untitled'}
-            </div>
-          ))}
-          {pages.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-600 text-center mt-4 italic">No pages yet</p>}
-        </div>
-
-        <div className="mt-6 border-t dark:border-slate-800 pt-6 px-1">
-          <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 mb-3 tracking-widest">Active Members</h3>
-          <div className="space-y-3 mb-6 max-h-48 overflow-y-auto pr-1">
-            {members.map((m: any) => (
-              <div key={m.userId} className="flex justify-between items-center text-xs group">
-                <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 border dark:border-slate-700">
-                        {m.user.avatarUrl ? (
-                            <img src={m.user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-slate-400">
-                                {m.user.username?.[0] || m.user.email[0].toUpperCase()}
-                            </div>
-                        )}
-                    </div>
-                    <span className="truncate text-slate-600 dark:text-slate-400 font-medium" title={m.user.email}>{m.user.username || m.user.email.split('@')[0]}</span>
-                </div>
-                {isOwner && m.userId !== user?.id && (
+        {activeTab === 'pages' ? (
+          selectedPage ? (
+            <>
+              {/* Toolbar */}
+              <div className="flex flex-wrap items-center justify-between px-4 md:px-8 py-4 border-b dark:border-slate-900 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-10 gap-4">
+                <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
                   <button 
-                    onClick={() => removeMember(m.userId)} 
-                    className="text-red-400 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all bg-red-50 dark:bg-red-950/20 p-1 rounded"
-                    title="Remove member"
+                    onClick={() => setIsPreview(false)}
+                    className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${!isPreview ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
                   >
-                    <UserMinus size={14} />
+                    <Edit2 size={16} /> <span className="hidden sm:inline">Edit</span>
                   </button>
-                )}
+                  <button 
+                    onClick={() => setIsPreview(true)}
+                    className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${isPreview ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
+                  >
+                    <Eye size={16} /> <span className="hidden sm:inline">Preview</span>
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                  />
+                  {!isPreview && (
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-400 dark:text-slate-500 transition-all group"
+                      title="Upload Image"
+                    >
+                      <ImageIcon size={20} className="group-hover:text-blue-500" />
+                    </button>
+                  )}
+                  {!isPreview && (
+                    <button 
+                      onClick={() => setIsFilePickerOpen(true)}
+                      className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-400 dark:text-slate-500 transition-all group"
+                      title="Link Resource"
+                    >
+                      <Plus size={20} className="group-hover:text-blue-500" />
+                    </button>
+                  )}
+                  <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1" />
+                  <span className="text-[10px] font-bold text-slate-300 dark:text-slate-700 uppercase tracking-widest">
+                      Auto-saved
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
 
-          {isOwner && (
-            <div className="flex flex-col gap-2">
-              <div className="relative group">
-                <input
-                  type="email"
-                  placeholder="Invite email..."
-                  className="text-xs w-full p-2.5 pr-10 border dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none focus:border-blue-500 dark:focus:border-blue-500 transition-all text-slate-800 dark:text-slate-200 shadow-sm"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                />
-                <button onClick={inviteUser} className="absolute right-2.5 top-2.5 text-slate-400 group-hover:text-blue-500 transition-colors">
-                  <Send size={16} />
-                </button>
+              <div className="flex-1 overflow-y-auto p-4 md:p-12 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+                <div className="max-w-4xl mx-auto w-full">
+                  <input
+                    className="text-3xl md:text-5xl font-black mb-8 md:mb-12 outline-none border-none placeholder:text-slate-200 dark:placeholder:text-slate-800 w-full text-slate-900 dark:text-slate-100 bg-transparent tracking-tight"
+                    placeholder="Untitled Page"
+                    value={selectedPage.title}
+                    onChange={(e) => setSelectedPage({...selectedPage, title: e.target.value})}
+                    onBlur={() => api.put(`/pages/${selectedPage.id}`, { title: selectedPage.title })}
+                  />
+                  
+                  {isPreview ? (
+                    <div className="prose prose-sm md:prose-lg prose-slate dark:prose-invert max-w-none prose-pre:bg-slate-900 dark:prose-pre:bg-black prose-pre:text-slate-50 prose-img:rounded-3xl prose-img:shadow-2xl">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]} 
+                        rehypePlugins={[rehypeHighlight]}
+                      >
+                        {content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      {Object.entries(cursors).map(([id, cursor]) => (
+                        <div 
+                          key={id} 
+                          className="cursor-label pointer-events-none absolute z-50 transition-all duration-100"
+                          style={{ left: cursor.x, top: cursor.y }}
+                        >
+                          <div className="cursor-dot shadow-sm bg-blue-500 w-[2px] h-[1.2em] rounded-none" />
+                          <div className="cursor-name shadow-lg bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md absolute -top-4 left-0 whitespace-nowrap">
+                            {cursor.userName}
+                          </div>
+                        </div>
+                      ))}
+                      <textarea
+                        className="w-full h-[calc(100vh-280px)] outline-none resize-none text-base md:text-xl leading-relaxed bg-transparent text-slate-700 dark:text-slate-300 font-mono scrollbar-hide"
+                        placeholder="Write something brilliant... (supports Markdown)"
+                        value={content}
+                        onChange={(e) => updateContent(e.target.value)}
+                        onKeyUp={handleCaretMove}
+                        onSelect={handleCaretMove}
+                        onClick={handleCaretMove}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-800 flex-col gap-6">
+              <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-[40px] shadow-sm animate-pulse">
+                <Edit2 size={64} className="text-slate-200 dark:text-slate-800" />
+              </div>
+              <p className="text-2xl font-black text-slate-400 dark:text-slate-700 text-center px-4">Select a page to begin</p>
             </div>
-          )}
-          
-          <button 
-            onClick={logout}
-            className="w-full mt-6 p-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
-          >
-            <LogOut size={16} /> Logout
-          </button>
-        </div>
+          )
+        ) : activeTab === 'files' ? (
+          <FileExplorer workspaceId={workspaceId} />
+        ) : activeTab === 'canvas' ? (
+          <DrawingCanvas workspaceId={workspaceId} />
+        ) : activeTab === 'chat' ? (
+          <Chat workspaceId={workspaceId} user={user} />
+        ) : (
+          <KanbanBoard workspaceId={workspaceId} />
+        )}
       </div>
 
       {/* Profile Settings Modal */}
       {isProfileOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl relative border dark:border-slate-800 animate-in zoom-in-95 duration-200">
+              <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl relative border dark:border-slate-800 animate-in zoom-in-95 duration-200">
                   <button onClick={() => setIsProfileOpen(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                       <X size={24} />
                   </button>
@@ -434,93 +535,29 @@ export default function Workspace() {
           </div>
       )}
 
-      {/* Editor Content */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-slate-950 overflow-hidden">
-        {selectedPage ? (
-          <>
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-8 py-4 border-b dark:border-slate-900 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-10">
-              <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-                <button 
-                  onClick={() => setIsPreview(false)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isPreview ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
-                >
-                  <Edit2 size={16} /> Edit
-                </button>
-                <button 
-                  onClick={() => setIsPreview(true)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${isPreview ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
-                >
-                  <Eye size={16} /> Preview
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                />
-                {!isPreview && (
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-400 dark:text-slate-500 transition-all group"
-                    title="Upload Image"
-                  >
-                    <ImageIcon size={20} className="group-hover:text-blue-500" />
-                  </button>
-                )}
-                <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1" />
-                <span className="text-xs font-bold text-slate-300 dark:text-slate-700 uppercase tracking-widest hidden md:inline">
-                    Auto-saved
-                </span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 lg:p-12 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-              <div className="max-w-4xl mx-auto w-full">
-                <input
-                  className="text-5xl font-black mb-12 outline-none border-none placeholder:text-slate-200 dark:placeholder:text-slate-800 w-full text-slate-900 dark:text-slate-100 bg-transparent tracking-tight"
-                  placeholder="Untitled Page"
-                  value={selectedPage.title}
-                  onChange={(e) => setSelectedPage({...selectedPage, title: e.target.value})}
-                  onBlur={() => api.put(`/pages/${selectedPage.id}`, { title: selectedPage.title })}
-                />
-                
-                {isPreview ? (
-                  <div className="prose prose-lg prose-slate dark:prose-invert max-w-none prose-pre:bg-slate-900 dark:prose-pre:bg-black prose-pre:text-slate-50 prose-img:rounded-3xl prose-img:shadow-2xl">
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]} 
-                      rehypePlugins={[rehypeHighlight]}
-                    >
-                      {content}
-                    </ReactMarkdown>
+      {/* File Picker Modal */}
+      {isFilePickerOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="w-full max-w-5xl h-[80vh] bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl relative border dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="p-6 border-b dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
+                      <div>
+                          <h2 className="text-2xl font-black">Select Resource</h2>
+                          <p className="text-sm text-slate-500 font-medium">Choose a file from your workspace to link.</p>
+                      </div>
+                      <button onClick={() => setIsFilePickerOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400">
+                          <X size={24} />
+                      </button>
                   </div>
-                ) : (
-                  <textarea
-                    className="w-full h-[calc(100vh-320px)] outline-none resize-none text-xl leading-relaxed bg-transparent text-slate-700 dark:text-slate-300 font-mono scrollbar-hide"
-                    placeholder="Write something brilliant... (supports Markdown)"
-                    value={content}
-                    onChange={(e) => updateContent(e.target.value)}
-                  />
-                )}
+                  
+                  <div className="flex-1 overflow-y-auto">
+                      <FileExplorer 
+                        workspaceId={workspaceId} 
+                        onSelect={handleResourceSelect}
+                      />
+                  </div>
               </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-800 flex-col gap-6">
-            <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-[40px] shadow-sm animate-pulse">
-              <Edit2 size={64} className="text-slate-200 dark:text-slate-800" />
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-2xl font-black text-slate-400 dark:text-slate-700">Select a page to begin</p>
-              <p className="text-sm font-bold text-slate-300 dark:text-slate-800 uppercase tracking-widest">Collaborate in real-time</p>
-            </div>
           </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

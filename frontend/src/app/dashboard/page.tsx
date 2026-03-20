@@ -10,6 +10,15 @@ interface Workspace {
   id: string;
   name: string;
   ownerId: string;
+  members: Array<{
+    userId: string;
+    user: {
+      id: string;
+      username: string;
+      email: string;
+      avatarUrl?: string;
+    };
+  }>;
 }
 
 export default function Dashboard() {
@@ -163,11 +172,35 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="flex items-center justify-between pt-4 border-t dark:border-slate-800">
-                                    <div className="flex -space-x-2">
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-white dark:border-slate-900" />
+                                    <div className="flex -space-x-2 items-center">
+                                        {w.members?.slice(0, 3).map((m, i) => (
+                                            <div 
+                                                key={m.userId} 
+                                                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 overflow-hidden relative group/avatar"
+                                                title={m.user.username || m.user.email.split('@')[0]}
+                                            >
+                                                {m.user.avatarUrl ? (
+                                                    <img src={m.user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
+                                                        {m.user.username?.[0] || m.user.email[0]}
+                                                    </div>
+                                                )}
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <span className="text-[6px] text-white font-bold truncate px-0.5">{(m.user.username || m.user.email.split('@')[0]).slice(0, 5)}</span>
+                                                </div>
+                                            </div>
                                         ))}
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-bold text-slate-400">+5</div>
+                                        {w.members?.length > 3 && (
+                                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-black text-slate-400">
+                                                +{w.members.length - 3}
+                                            </div>
+                                        )}
+                                        {(!w.members || w.members.length === 0) && (
+                                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-slate-300">
+                                                <UserIcon size={14} />
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="text-blue-600 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-xl opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
                                         <ChevronRight size={20} />

@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: 
+    build:
       context: ./frontend
     container_name: notion-frontend
     ports:

@@ -24,6 +24,10 @@ model User {
   ownedWorkspaces Workspace[] @relation("Owner")
   memberships     WorkspaceMember[]
   createdPages    Page[]
+  uploadedFiles   File[]
+  createdDrawings Drawing[]
+  chatMessages    ChatMessage[]
+  kanbanCards     KanbanCard[]
 }
 
 model Workspace {
@@ -36,6 +40,11 @@ model Workspace {
   owner     User     @relation("Owner", fields: [ownerId], references: [id])
   members   WorkspaceMember[]
   pages     Page[]
+  files     File[]
+  folders   Folder[]
+  drawings  Drawing[]
+  chatMessages ChatMessage[]
+  kanbanBoards KanbanBoard[]
 }
 
 model WorkspaceMember {
@@ -65,4 +74,95 @@ model Page {
   author      User      @relation(fields: [authorId], references: [id])
   parent      Page?     @relation("PageHierarchy", fields: [parentId], references: [id])
   children    Page[]    @relation("PageHierarchy")
+}
+
+model Folder {
+  id          String    @id @default(uuid())
+  name        String
+  workspaceId String
+  parentId    String?   // For nesting folders
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  parent      Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children    Folder[]  @relation("FolderHierarchy")
+  files       File[]
+}
+
+model File {
+  id          String   @id @default(uuid())
+  name        String
+  url         String
+  size        Int
+  type        String
+  description String?  // Added for GitHub-like feel
+  workspaceId String
+  uploaderId  String
+  folderId    String?  // Linked to Folder
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  uploader    User      @relation(fields: [uploaderId], references: [id])
+  folder      Folder?   @relation(fields: [folderId], references: [id])
+}
+
+model Drawing {
+  id          String   @id @default(uuid())
+  title       String   @default("Untitled Drawing")
+  data        String   // JSON string of drawing paths/actions
+  workspaceId String
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  author      User      @relation(fields: [authorId], references: [id])
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  content     String
+  workspaceId String
+  authorId    String
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  author      User      @relation(fields: [authorId], references: [id])
+}
+
+model KanbanBoard {
+  id          String   @id @default(uuid())
+  title       String
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  columns     KanbanColumn[]
+}
+
+model KanbanColumn {
+  id        String   @id @default(uuid())
+  title     String
+  boardId   String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board     KanbanBoard @relation(fields: [boardId], references: [id])
+  cards     KanbanCard[]
+}
+
+model KanbanCard {
+  id          String   @id @default(uuid())
+  content     String
+  columnId    String
+  authorId    String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  column      KanbanColumn @relation(fields: [columnId], references: [id])
+  author      User         @relation(fields: [authorId], references: [id])
 }
