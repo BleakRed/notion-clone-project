@@ -31,6 +31,7 @@ export default function Chat({ workspaceId, user }: { workspaceId: string, user:
         });
 
         return () => {
+            socket.emit('leave-chat', workspaceId);
             socket.off('message-received');
         };
     }, [workspaceId]);

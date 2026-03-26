@@ -1,42 +1,44 @@
 # Notion Clone Project - Documentation
 
-This project is a full-stack, real-time collaborative workspace application inspired by Notion. It allows teams to manage pages, share files, and draw together in a unified, mobile-responsive environment.
+This project is a full-stack, real-time collaborative workspace application inspired by Notion. It allows teams to manage pages, share files, draw together, chat, and manage tasks with Kanban boards in a unified, mobile-responsive environment.
 
 ## 🚀 Features
 
 ### 1. **Real-time Collaboration & Markdown**
 
 - **Live Editing:** Multiple users in the same workspace can edit the same page simultaneously. Changes are broadcasted instantly using **Socket.io**.
-- **Live Cursors:** See other users' cursor movements in real-time, making collaboration feel alive.
+- **Live Cursors:** See other users' cursor movements in real-time, tracked to the typing caret for precision.
 - **Obsidian-like Rendering:** Supports **Markdown** with code syntax highlighting and GitHub-flavored markdown (GFM).
-- **Toggle View:** Switch between **Edit Mode** (monospaced editor) and **Preview Mode** (beautifully rendered document).
 
 ### 2. **GitHub-like File Explorer**
 
 - **Nested Folders:** Organize project resources with an intuitive folder hierarchy and breadcrumb navigation.
 - **Commit-style Descriptions:** Add descriptions to uploaded files to keep track of resource purpose and history.
 - **Asset Previews:** Visual cards for images and dedicated icons for various file types.
-- **Global Search:** Quickly find files, folders, or descriptions across the entire workspace.
+- **Code Preview:** Built-in syntax highlighter for code files.
 
 ### 3. **Collaborative Drawing Canvas**
 
-- **Shared Sketchpad:** Draw together in real-time with synchronized strokes powered by Socket.io.
+- **Shared Sketchpad:** Draw together in real-time with synchronized strokes and room-based isolation.
 - **Advanced Tools:** Includes a Pen, Eraser, Undo functionality (stroke history), and customizable stroke widths/colors.
 - **Persistent Drawings:** Save your sketches to the workspace, browse drawing history, and download creations as PNG files.
+- **State Sync:** New users joining an active session automatically receive the current canvas state.
 
-### 4. **Modern UI/UX & Responsiveness**
+### 4. **Team Chat & Kanban**
+
+- **Real-time Chat:** Instant messaging within the workspace to coordinate with team members.
+- **Task Management:** Create multiple Kanban boards with customizable columns to track project progress.
+
+### 5. **Modern UI/UX & Responsiveness**
 
 - **Mobile Friendly:** Fully adaptive design optimized for mobile, tablet, and desktop screens.
-- **Dark Mode Support:** A built-in toggle to switch between Light and Dark themes for a comfortable viewing experience.
-- **User Profiles:** Customize your username and avatar to personalize your presence in the workspace.
+- **Dark Mode Support:** A built-in toggle to switch between Light and Dark themes.
+- **User Profiles:** Customize your username and avatar to personalize your presence.
 
-### 5. **Workspace & Member Management**
+### 6. **Workspace & Member Management**
 
-- **Personal & Shared Spaces:** Users can create multiple workspaces.
-- **Owner-Only Privileges:**
-  - Only the workspace **Owner** can invite new members via email.
-  - Only the **Owner** can remove members from the workspace.
-- **Access Control:** Workspaces are private to their members. If a user is removed, they immediately lose access to the workspace.
+- **Owner Privileges:** Manage workspace membership (invites and removals).
+- **Access Control:** Strict authorization ensures only members can access workspace data.
 
 ---
 
@@ -44,19 +46,17 @@ This project is a full-stack, real-time collaborative workspace application insp
 
 ### **Backend**
 
-- **Node.js & Express:** Robust REST API for authentication and resource management.
-- **Socket.io:** Powers the real-time bidirectional communication and drawing synchronization.
+- **Node.js & Express:** Robust REST API.
+- **Socket.io:** Powers real-time features.
 - **Prisma ORM:** Type-safe database access for SQLite.
-- **JWT (JSON Web Tokens):** Secure authentication for all API endpoints.
-- **Multer:** Handles file and image uploads.
+- **JWT:** Secure authentication.
 
 ### **Frontend**
 
-- **Next.js (App Router):** High-performance React framework for the UI.
-- **Tailwind CSS:** Modern, utility-first styling for a clean, "Notion-like" aesthetic.
-- **Lucide React:** Beautiful, consistent iconography.
-- **Socket.io-client:** Connects the browser to the real-time server.
-- **Axios:** Handles API requests with interceptors for automatic token handling.
+- **Next.js (App Router):** High-performance React framework.
+- **Tailwind CSS:** Modern utility-first styling.
+- **Lucide React:** Iconography.
+- **Axios:** API client with interceptors.
 
 ---
 
@@ -65,19 +65,18 @@ This project is a full-stack, real-time collaborative workspace application insp
 ```text
 notion-clone-project/
 ├── backend/
-│   ├── prisma/             # Database schema (User, Workspace, Page, File, Folder, Drawing)
+│   ├── prisma/             # Database schema (User, Workspace, Page, File, Drawing, Chat, Kanban)
 │   ├── src/
-│   │   ├── middleware/     # Auth & security middleware
-│   │   ├── routes/         # API endpoints (auth, workspace, page, file, drawing, upload)
-│   │   ├── socket/         # Real-time event handlers for pages and drawing
+│   │   ├── middleware/     # Auth middleware
+│   │   ├── routes/         # API endpoints (auth, workspace, page, file, drawing, chat, kanban)
+│   │   ├── socket/         # Real-time event handlers
 │   │   └── index.ts        # Server entry point
-│   └── uploads/            # Local storage for uploaded assets
+│   └── uploads/            # Storage for uploaded assets
 ├── frontend/
 │   ├── src/
-│   │   ├── app/            # Next.js pages (Dashboard, Workspace, Auth)
-│   │   ├── components/     # UI components (Sidebar, FileExplorer, DrawingCanvas)
+│   │   ├── app/            # Next.js pages
+│   │   ├── components/     # UI components (Chat, Kanban, DrawingCanvas, etc.)
 │   │   └── lib/            # API and Socket clients
-│   └── tailwind.config.ts  # Styling configuration
 └── docker-compose.yml      # (Optional) Containerization setup
 ```
 
@@ -112,20 +111,12 @@ notion-clone-project/
 3. **Usage:**
    - Navigate to `http://localhost:3000`.
    - Register a user and create a workspace.
-   - Use the **Pages** tab for notes, **Files** for resource sharing, and **Canvas** for brainstorming.
+   - Use the sidebar to switch between Pages, Files, Canvas, Chat, and Kanban.
 
 ---
 
 ## 🛡 Security & Maintenance
 
-- **Data Integrity:** SQLite provides local persistence with Prisma handling the schema migrations.
-- **File Safety:** 10MB upload limits and secure file naming conventions.
-- **Access Logic:** Strict backend verification ensures members can only access their authorized workspaces.
-
-Things to do:
-
-- Add Chat
-- Add KanbanBoard
-- Make it so that you can edit the already made files in the files
-- fix the canvas so that when a person joins when a new canvas is being made it also shows it to the new person (the current one is that if a person is already drawing a picture then a new person joins the new person has a empty canvas and it continues to draw from the sameone from the first persons drawing causing a overlap.)
-- do the papers
+- **Data Integrity:** SQLite persistence with Prisma migrations.
+- **Large Payloads:** Express body limits increased to 50MB for high-res drawings.
+- **Isolation:** Collaborative rooms are isolated per workspace/resource to prevent data leaks.

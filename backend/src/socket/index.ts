@@ -30,12 +30,11 @@ export const setupSocket = (io: Server) => {
     });
 
     // Drawing Events
-    socket.on('join-drawing', async (workspaceId: string) => {
-        const roomName = `drawing-${workspaceId}`;
+    socket.on('join-drawing', async (roomName: string) => {
         const existingUsers = await io.in(roomName).fetchSockets();
         
         socket.join(roomName);
-        console.log(`Socket ${socket.id} joined drawing workspace ${workspaceId}`);
+        console.log(`Socket ${socket.id} joined drawing room ${roomName}`);
 
         // If there are other users, request state from one of them
         if (existingUsers.length > 0) {
@@ -44,22 +43,32 @@ export const setupSocket = (io: Server) => {
         }
     });
 
+    socket.on('leave-drawing', (roomName: string) => {
+        socket.leave(roomName);
+        console.log(`Socket ${socket.id} left drawing room ${roomName}`);
+    });
+
     socket.on('canvas-state-sent', (data: { targetId: string, state: string }) => {
         io.to(data.targetId).emit('canvas-state-received', data.state);
     });
 
-    socket.on('draw-stroke', (data: { workspaceId: string, x1: number, y1: number, x2: number, y2: number, color: string, lineWidth: number }) => {
-        socket.to(`drawing-${data.workspaceId}`).emit('stroke-received', data);
+    socket.on('draw-stroke', (data: { roomName: string, x1: number, y1: number, x2: number, y2: number, color: string, lineWidth: number }) => {
+        socket.to(data.roomName).emit('stroke-received', data);
     });
 
-    socket.on('clear-drawing', (workspaceId: string) => {
-        socket.to(`drawing-${workspaceId}`).emit('drawing-cleared');
+    socket.on('clear-drawing', (roomName: string) => {
+        socket.to(roomName).emit('drawing-cleared');
     });
 
     // Chat Events
     socket.on('join-chat', (workspaceId: string) => {
         socket.join(`chat-${workspaceId}`);
         console.log(`Socket ${socket.id} joined chat ${workspaceId}`);
+    });
+
+    socket.on('leave-chat', (workspaceId: string) => {
+        socket.leave(`chat-${workspaceId}`);
+        console.log(`Socket ${socket.id} left chat ${workspaceId}`);
     });
 
     socket.on('send-message', (data: { workspaceId: string, message: any }) => {
@@ -70,6 +79,11 @@ export const setupSocket = (io: Server) => {
     socket.on('join-kanban', (boardId: string) => {
         socket.join(`kanban-${boardId}`);
         console.log(`Socket ${socket.id} joined kanban board ${boardId}`);
+    });
+
+    socket.on('leave-kanban', (boardId: string) => {
+        socket.leave(`kanban-${boardId}`);
+        console.log(`Socket ${socket.id} left kanban board ${boardId}`);
     });
 
     socket.on('update-kanban', (boardId: string) => {

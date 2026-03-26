@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github.css';
 import { 
-  Eye, Edit2, Image as ImageIcon, Menu, X, Camera, User as UserIcon, Settings, Plus
+  Eye, Edit2, Image as ImageIcon, Menu, X, Camera, User as UserIcon, Settings, Plus, Download
 } from 'lucide-react';
 
 import Sidebar from '../../../components/Sidebar';
@@ -89,6 +89,17 @@ export default function Workspace() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const downloadMarkdown = () => {
+    if (!selectedPage) return;
+    const element = document.createElement("a");
+    const file = new Blob([content], {type: 'text/markdown'});
+    element.href = URL.createObjectURL(file);
+    element.download = `${selectedPage.title || 'untitled'}.md`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
   useEffect(() => {
     const userData = Cookies.get('user');
@@ -381,6 +392,13 @@ export default function Workspace() {
                     className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${isPreview ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
                   >
                     <Eye size={16} /> <span className="hidden sm:inline">Preview</span>
+                  </button>
+                  <button
+                    onClick={downloadMarkdown}
+                    className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 transition-all"
+                    title="Download as Markdown"
+                  >
+                    <Download size={16} /> <span className="hidden sm:inline">Download</span>
                   </button>
                 </div>
                 

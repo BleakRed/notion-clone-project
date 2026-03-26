@@ -25,9 +25,10 @@ model User {
   memberships     WorkspaceMember[]
   createdPages    Page[]
   uploadedFiles   File[]
-  createdDrawings Drawing[]
-  chatMessages    ChatMessage[]
-  kanbanCards     KanbanCard[]
+  createdDrawings Drawing[]    @relation("DrawingAuthor")
+  chatMessages    ChatMessage[] @relation("ChatAuthor")
+  kanbanCards     KanbanCard[] @relation("Author")
+  assignedCards   KanbanCard[] @relation("CardAssignees")
 }
 
 model Workspace {
@@ -117,7 +118,7 @@ model Drawing {
   updatedAt   DateTime @updatedAt
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  author      User      @relation(fields: [authorId], references: [id])
+  author      User      @relation("DrawingAuthor", fields: [authorId], references: [id])
 }
 
 model ChatMessage {
@@ -128,7 +129,7 @@ model ChatMessage {
   createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  author      User      @relation(fields: [authorId], references: [id])
+  author      User      @relation("ChatAuthor", fields: [authorId], references: [id])
 }
 
 model KanbanBoard {
@@ -145,6 +146,7 @@ model KanbanBoard {
 model KanbanColumn {
   id        String   @id @default(uuid())
   title     String
+  color     String?  @default("#3b82f6")
   boardId   String
   order     Int      @default(0)
   createdAt DateTime @default(now())
@@ -157,6 +159,7 @@ model KanbanColumn {
 model KanbanCard {
   id          String   @id @default(uuid())
   content     String
+  description String?
   columnId    String
   authorId    String
   order       Int      @default(0)
@@ -164,5 +167,6 @@ model KanbanCard {
   updatedAt   DateTime @updatedAt
 
   column      KanbanColumn @relation(fields: [columnId], references: [id])
-  author      User         @relation(fields: [authorId], references: [id])
+  author      User         @relation("Author", fields: [authorId], references: [id])
+  assignees   User[]       @relation("CardAssignees")
 }

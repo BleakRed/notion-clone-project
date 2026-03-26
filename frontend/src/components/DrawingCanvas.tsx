@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Palette, Trash2, Save, Eraser, Pen, MousePointer2, 
   RotateCcw, ChevronRight, ChevronLeft, Menu, X, 
-  Download, Image as ImageIcon, History
+  Download, Image as ImageIcon, History, Plus
 } from 'lucide-react';
 import api from '../lib/api';
 import { socket } from '../lib/socket';
@@ -27,9 +27,16 @@ export default function DrawingCanvas({ workspaceId }: { workspaceId: string }) 
     fetchDrawings();
     initCanvas();
     
-    // Socket setup (connection handled by parent, we just add listeners)
+    // Join the drawing room
+    const roomName = selectedDrawingId ? `drawing-saved-${selectedDrawingId}` : `drawing-${workspaceId}`;
+    socket.emit('join-drawing', roomName);
+    
+    // Socket setup
     socket.on('stroke-received', (data: any) => {
-        drawRemoteStroke(data);
+        // Draw if it's for the current room
+        if (data.roomName === roomName) {
+            drawRemoteStroke(data);
+        }
     });
 
     socket.on('drawing-cleared', () => {
@@ -59,12 +66,13 @@ export default function DrawingCanvas({ workspaceId }: { workspaceId: string }) 
     window.addEventListener('resize', initCanvas);
     return () => {
         window.removeEventListener('resize', initCanvas);
+        socket.emit('leave-drawing', roomName);
         socket.off('stroke-received');
         socket.off('drawing-cleared');
         socket.off('request-canvas-state');
         socket.off('canvas-state-received');
     };
-  }, [workspaceId]);
+  }, [workspaceId, selectedDrawingId]);
 
   const initCanvas = () => {
     const canvas = canvasRef.current;
@@ -136,8 +144,9 @@ export default function DrawingCanvas({ workspaceId }: { workspaceId: string }) 
     ctx.stroke();
 
     // Emit to others
+    const roomName = selectedDrawingId ? `drawing-saved-${selectedDrawingId}` : `drawing-${workspaceId}`;
     socket.emit('draw-stroke', {
-        workspaceId,
+        roomName,
         x1: lastPos.current.x,
         y1: lastPos.current.y,
         x2: x,
@@ -209,7 +218,8 @@ export default function DrawingCanvas({ workspaceId }: { workspaceId: string }) 
   const clearCanvas = () => {
     if (!confirm('Clear entire canvas?')) return;
     clearCanvasLocal();
-    socket.emit('clear-drawing', workspaceId);
+    const roomName = selectedDrawingId ? `drawing-saved-${selectedDrawingId}` : `drawing-${workspaceId}`;
+    socket.emit('clear-drawing', roomName);
   };
 
   const undo = () => {
@@ -275,6 +285,11 @@ export default function DrawingCanvas({ workspaceId }: { workspaceId: string }) 
     img.src = drawing.data;
   };
 
+  const newCanvas = () => {
+    setSelectedDrawingId(null);
+    clearCanvasLocal();
+  };
+
   const downloadDrawing = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -298,6 +313,14 @@ export default function DrawingCanvas({ workspaceId }: { workspaceId: string }) 
             </button>
 
             <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
+
+            <button 
+                onClick={newCanvas}
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-blue-600 transition-all flex items-center gap-2"
+                title="New Empty Canvas"
+            >
+                <Plus size={18} /> <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">New</span>
+            </button>
 
             <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
                 <button 

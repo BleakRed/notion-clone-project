@@ -1,11 +1,12 @@
 import express from 'express';
 import prisma from '../prisma';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { Response } from 'express';
 
 const router = express.Router();
 
 // Get chat history for a workspace
-router.get('/workspace/:workspaceId', authenticateToken, async (req: any, res) => {
+router.get('/workspace/:workspaceId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { workspaceId } = req.params;
     const messages = await prisma.chatMessage.findMany({
@@ -29,11 +30,11 @@ router.get('/workspace/:workspaceId', authenticateToken, async (req: any, res) =
 });
 
 // Post a new message
-router.post('/workspace/:workspaceId', authenticateToken, async (req: any, res) => {
+router.post('/workspace/:workspaceId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { workspaceId } = req.params;
     const { content } = req.body;
-    const authorId = req.user.id;
+    const authorId = req.user!.userId;
 
     const message = await prisma.chatMessage.create({
       data: {
