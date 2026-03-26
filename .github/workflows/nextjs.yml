@@ -82,6 +82,9 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./frontend/out
+      - name: Export static site
+        working-directory: ./frontend
+        run: ${{ steps.detect-package-manager.outputs.runner }} next export
 
   # Deployment job
   deploy:
