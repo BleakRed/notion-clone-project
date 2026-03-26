@@ -64,7 +64,7 @@ router.get('/:id/members', authenticateToken, async (req: AuthRequest, res: Resp
       include: {
         user: {
           select: { id: true, email: true, name: true, username: true, avatarUrl: true }
-        }
+                }
       }
     });
     res.json(members);
