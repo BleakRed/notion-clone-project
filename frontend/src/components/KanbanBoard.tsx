@@ -214,6 +214,16 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
+            <style jsx global>{`
+                @keyframes card-in {
+                    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .card-animation {
+                    animation: card-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                }
+            `}</style>
+
             {/* Kanban Header */}
             <div className="p-4 md:p-8 bg-white dark:bg-slate-900 border-b dark:border-slate-800 shadow-sm z-10">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -243,12 +253,12 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
             </div>
 
             {/* Board Area */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 md:p-8 scrollbar-thin">
-                <div className="flex gap-6 h-full min-w-max pb-4">
+            <div className="flex-1 overflow-x-auto overflow-y-auto p-4 md:p-8 scrollbar-thin">
+                <div className="flex gap-6 h-fit min-w-max pb-8 items-start">
                     {selectedBoard?.columns.map((column, colIndex) => (
                         <div 
                             key={column.id} 
-                            className="w-80 flex flex-col h-full bg-slate-100/50 dark:bg-slate-900/30 rounded-[32px] border dark:border-slate-800/50"
+                            className="w-80 flex flex-col h-fit max-h-full bg-slate-100/50 dark:bg-slate-900/30 rounded-[32px] border dark:border-slate-800/50 shadow-sm transition-all duration-300"
                             onDragOver={onDragOver}
                             onDrop={(e) => onDrop(e, column.id)}
                         >
@@ -293,7 +303,7 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
                                         key={card.id} 
                                         draggable 
                                         onDragStart={(e) => onDragStart(e, card.id)}
-                                        className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border-l-4 border dark:border-slate-800/50 group cursor-grab active:cursor-grabbing hover:shadow-md transition-all"
+                                        className="card-animation bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border-l-4 border dark:border-slate-800/50 group cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200"
                                         style={{ borderLeftColor: column.color || '#3b82f6' }}
                                     >
                                         <div className="flex justify-between items-start gap-2 mb-2">
@@ -356,14 +366,14 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
 
             {/* Card Edit Modal */}
             {editingCard && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl border dark:border-slate-800 overflow-hidden">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl border dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-8 border-b dark:border-slate-800 flex justify-between items-center">
                             <h3 className="text-2xl font-black">Card Details</h3>
                             <button onClick={() => setEditingCard(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400"><X size={24} /></button>
                         </div>
                         
-                        <div className="p-8 flex gap-8">
+                        <div className="p-8 flex flex-col md:flex-row gap-8">
                             <div className="flex-1 space-y-6">
                                 <div>
                                     <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Title</label>
@@ -384,11 +394,11 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
                                     />
                                 </div>
                                 <div className="flex gap-4">
-                                    <button onClick={updateCard} className="flex-1 bg-blue-600 text-white font-black p-4 rounded-2xl shadow-xl shadow-blue-500/20 transition-all uppercase text-xs tracking-widest">Save Changes</button>
+                                    <button onClick={updateCard} className="flex-1 bg-blue-600 text-white font-black p-4 rounded-2xl shadow-xl shadow-blue-500/20 transition-all uppercase text-xs tracking-widest active:scale-95">Save Changes</button>
                                 </div>
                             </div>
 
-                            <div className="w-48">
+                            <div className="w-full md:w-48">
                                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 block">Assignees</label>
                                 <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
                                     {members.map(u => {
@@ -416,7 +426,7 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
 
             {/* Create Board Modal */}
             {isCreatingBoard && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[40px] p-8 shadow-2xl border dark:border-slate-800 animate-in zoom-in-95 duration-200">
                         <h3 className="text-2xl font-black mb-2">New Kanban Board</h3>
                         <p className="text-slate-500 text-sm mb-8 font-medium">Define a title for your new workspace board.</p>

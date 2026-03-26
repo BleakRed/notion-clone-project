@@ -109,42 +109,33 @@ export default function Workspace() {
         setNewUsername(parsed.username || '');
         setNewAvatarUrl(parsed.avatarUrl || '');
     }
-    
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
+
+    if (!Cookies.get('token')) {
+      router.push('/');
+    } else {
+      fetchWorkspace();
+      fetchPages();
+      fetchMembers();
     }
 
-    if (workspaceId) {
-        fetchWorkspace();
-        fetchPages();
-        fetchMembers();
-    }
+    // Appearance
+    const savedMode = localStorage.getItem('darkMode') === 'true';
+    setIsDarkMode(savedMode);
+    if (savedMode) document.documentElement.classList.add('dark');
   }, [workspaceId]);
 
   useEffect(() => {
-    if (user) {
-        socket.connect();
-        return () => { socket.disconnect(); };
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedPage && user && activeTab === 'pages') {
+    if (selectedPage) {
       socket.emit('join-page', selectedPage.id);
-
       socket.on('page-updated', (newContent: string) => {
         setContent(newContent);
       });
-
       socket.on('cursor-updated', (data: { userId: string, userName: string, x: number, y: number }) => {
         setCursors(prev => ({
           ...prev,
           [data.userId]: { x: data.x, y: data.y, userName: data.userName }
         }));
       });
-
       socket.on('user-left', (userId: string) => {
         setCursors(prev => {
           const next = { ...prev };
@@ -160,47 +151,13 @@ export default function Workspace() {
         socket.off('user-left');
       };
     }
-    
-    if (activeTab === 'canvas' && user && workspaceId) {
-        socket.emit('join-drawing', workspaceId);
-        return () => {
-            // No need to emit leave-drawing unless we add a leave-drawing socket event
-            // But we should at least not fight with other rooms
-        };
-    }
-  }, [selectedPage, user, activeTab, workspaceId]);
-
-  const toggleDarkMode = () => {
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
-  const handleCaretMove = (e: React.KeyboardEvent<HTMLTextAreaElement> | React.MouseEvent<HTMLTextAreaElement>) => {
-    if (selectedPage && user && activeTab === 'pages') {
-      const target = e.target as HTMLTextAreaElement;
-      const { x, y } = getCaretCoordinates(target, target.selectionStart);
-      
-      socket.emit('cursor-move', {
-        pageId: selectedPage.id,
-        x,
-        y,
-        userName: user.username || user.email.split('@')[0]
-      });
-    }
-  };
+  }, [selectedPage?.id]);
 
   const fetchWorkspace = async () => {
     try {
-      const { data } = await api.get('/workspaces');
-      const ws = data.find((w: any) => w.id === workspaceId);
-      setWorkspace(ws);
+      const { data } = await api.get(`/workspaces`);
+      const current = data.find((w: any) => w.id === workspaceId);
+      setWorkspace(current);
     } catch (err) {}
   };
 
@@ -208,9 +165,6 @@ export default function Workspace() {
     try {
       const { data } = await api.get(`/pages/workspace/${workspaceId}`);
       setPages(data);
-      if (data.length > 0 && !selectedPage) {
-        selectPage(data[0]);
-      }
     } catch (err) {}
   };
 
@@ -221,65 +175,83 @@ export default function Workspace() {
     } catch (err) {}
   };
 
-  const selectPage = async (page: Page) => {
+  const handleCreatePage = async () => {
     try {
-      const { data } = await api.get(`/pages/${page.id}`);
-      setSelectedPage(data);
-      setContent(data.content);
-      setActiveTab('pages');
-      setIsSidebarOpen(false); // Close sidebar on mobile after selection
-    } catch (err) {}
-  };
-
-  const createPage = async () => {
-    try {
-      const { data } = await api.post('/pages', { title: 'Untitled', workspaceId });
+      const { data } = await api.post('/pages', { 
+        title: 'Untitled', 
+        workspaceId 
+      });
       setPages([data, ...pages]);
-      setSelectedPage(data);
-      setContent('');
-      setIsPreview(false);
-      setActiveTab('pages');
-      setIsSidebarOpen(false);
+      handleSelectPage(data);
     } catch (err) {}
   };
 
-  const updateContent = (newContent: string) => {
-    setContent(newContent);
+  const handleSelectPage = (page: Page) => {
+    setSelectedPage(page);
+    setContent(page.content);
+    setIsPreview(false);
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+  };
+
+  const updateContent = (val: string) => {
+    setContent(val);
     if (selectedPage) {
-      socket.emit('update-page', { pageId: selectedPage.id, content: newContent });
-      api.put(`/pages/${selectedPage.id}`, { content: newContent });
+      socket.emit('update-page', { pageId: selectedPage.id, content: val });
+      // Debounced auto-save
+      const timeout = setTimeout(() => {
+        api.put(`/pages/${selectedPage.id}`, { content: val });
+      }, 1000);
+      return () => clearTimeout(timeout);
     }
   };
 
-  const handleResourceSelect = (file: any) => {
+  const handleCaretMove = (e: any) => {
     if (!selectedPage) return;
-    
-    let markdown = '';
-    if (file.type.startsWith('image/')) {
-        markdown = `\n![${file.name}](${file.url})\n`;
-    } else {
-        markdown = ` [${file.name}](${file.url}) `;
+    const { x, y } = getCaretCoordinates(e.target, e.target.selectionStart);
+    socket.emit('cursor-move', {
+      pageId: selectedPage.id,
+      x,
+      y,
+      userName: user?.username || user?.email.split('@')[0]
+    });
+  };
+
+  const handleToggleDarkMode = () => {
+    const newVal = !isDarkMode;
+    setIsDarkMode(newVal);
+    localStorage.setItem('darkMode', String(newVal));
+    if (newVal) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+        const { data } = await api.put('/auth/profile', {
+            username: newUsername,
+            avatarUrl: newAvatarUrl
+        });
+        setUser(data);
+        Cookies.set('user', JSON.stringify(data));
+        setIsProfileOpen(false);
+        alert('Profile updated!');
+    } catch (err: any) {
+        alert(err.response?.data?.error || 'Update failed');
     }
-    
-    updateContent(content + markdown);
-    setIsFilePickerOpen(false);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedPage) return;
+    if (!file) return;
 
     const formData = new FormData();
     formData.append('image', file);
 
     try {
-      const { data } = await api.post('/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      const imageMarkdown = `\n![${file.name}](${data.url})\n`;
-      updateContent(content + imageMarkdown);
+        const { data } = await api.post('/upload', formData);
+        const markdownImage = `\n![${file.name}](${data.url})\n`;
+        updateContent(content + markdownImage);
     } catch (err) {
-      alert('Failed to upload image');
+        alert('Upload failed');
     }
   };
 
@@ -291,59 +263,39 @@ export default function Workspace() {
     formData.append('image', file);
 
     try {
-        const { data } = await api.post('/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        const { data } = await api.post('/upload', formData);
         setNewAvatarUrl(data.url);
     } catch (err) {
-        alert('Failed to upload avatar');
+        alert('Avatar upload failed');
     }
   };
 
-  const updateProfile = async () => {
-      try {
-          const { data } = await api.put('/auth/profile', {
-              username: newUsername,
-              avatarUrl: newAvatarUrl
-          });
-          setUser(data);
-          Cookies.set('user', JSON.stringify(data));
-          setIsProfileOpen(false);
-          fetchMembers();
-          alert('Profile updated!');
-      } catch (err: any) {
-          alert(err.response?.data?.error || 'Failed to update profile');
-      }
-  };
-
-  const inviteUser = async (email: string) => {
+  const handleInvite = async (email: string) => {
     try {
-      await api.post(`/workspaces/${workspaceId}/invite`, { email });
-      fetchMembers();
-      alert('Invited successfully!');
+        await api.post(`/workspaces/${workspaceId}/invite`, { email });
+        alert('Invite sent!');
+        fetchMembers();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to invite');
+        alert(err.response?.data?.error || 'Invite failed');
     }
   };
 
-  const removeMember = async (memberId: string) => {
-    if (!confirm('Are you sure you want to remove this member?')) return;
+  const handleRemoveMember = async (userId: string) => {
+    if (!confirm('Remove this member?')) return;
     try {
-      await api.delete(`/workspaces/${workspaceId}/members/${memberId}`);
-      fetchMembers();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to remove member');
-    }
+        await api.delete(`/workspaces/${workspaceId}/members/${userId}`);
+        fetchMembers();
+    } catch (err) {}
   };
 
-  const logout = () => {
+  const handleLogout = () => {
     Cookies.remove('token');
     Cookies.remove('user');
     router.push('/');
   };
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-950 text-black dark:text-slate-100 font-sans transition-colors relative overflow-hidden">
+    <div className={`flex h-screen overflow-hidden ${isDarkMode ? 'dark' : ''} bg-white dark:bg-slate-950 transition-colors duration-300`}>
       <Sidebar 
         user={user}
         workspace={workspace}
@@ -353,41 +305,40 @@ export default function Workspace() {
         activeTab={activeTab}
         isDarkMode={isDarkMode}
         isOpen={isSidebarOpen}
-        onSelectPage={selectPage}
-        onCreatePage={createPage}
-        onTabChange={(tab) => { setActiveTab(tab); setIsSidebarOpen(false); }}
-        onToggleDarkMode={toggleDarkMode}
+        onSelectPage={handleSelectPage}
+        onCreatePage={handleCreatePage}
+        onTabChange={setActiveTab}
+        onToggleDarkMode={handleToggleDarkMode}
         onToggleProfile={() => setIsProfileOpen(true)}
-        onInvite={inviteUser}
-        onRemoveMember={removeMember}
-        onLogout={logout}
+        onInvite={handleInvite}
+        onRemoveMember={handleRemoveMember}
+        onLogout={handleLogout}
         onClose={() => setIsSidebarOpen(false)}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-slate-950 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between p-4 border-b dark:border-slate-800">
-            <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+        <div className="lg:hidden p-4 border-b dark:border-slate-800 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-30">
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all">
                 <Menu size={24} />
             </button>
-            <h1 className="font-bold truncate max-w-[200px]">{workspace?.name || 'Workspace'}</h1>
-            <div className="w-10" /> {/* Spacer */}
+            <h1 className="font-black text-lg tracking-tight">{workspace?.name}</h1>
+            <div className="w-10" />
         </div>
 
         {activeTab === 'pages' ? (
           selectedPage ? (
             <>
-              {/* Toolbar */}
-              <div className="flex flex-wrap items-center justify-between px-4 md:px-8 py-4 border-b dark:border-slate-900 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-10 gap-4">
-                <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-                  <button 
+              {/* Editor Header */}
+              <div className="p-4 md:px-8 md:py-6 border-b dark:border-slate-800 flex justify-between items-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl z-20">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
                     onClick={() => setIsPreview(false)}
-                    className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${!isPreview ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
+                    className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${!isPreview ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
                   >
                     <Edit2 size={16} /> <span className="hidden sm:inline">Edit</span>
                   </button>
-                  <button 
+                  <button
                     onClick={() => setIsPreview(true)}
                     className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${isPreview ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
                   >
@@ -501,78 +452,73 @@ export default function Workspace() {
         )}
       </div>
 
-      {/* Profile Settings Modal */}
+      {/* Profile Modal */}
       {isProfileOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl relative border dark:border-slate-800 animate-in zoom-in-95 duration-200">
-                  <button onClick={() => setIsProfileOpen(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                      <X size={24} />
-                  </button>
-                  
-                  <h2 className="text-2xl font-black mb-1">Your Profile</h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Customize how others see you in the workspace.</p>
-                  
-                  <div className="flex flex-col items-center mb-8">
-                      <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                          <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 border-4 border-white dark:border-slate-700 overflow-hidden shadow-lg">
-                              {newAvatarUrl ? (
-                                  <img src={newAvatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                              ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                      <UserIcon size={40} />
-                                  </div>
-                              )}
-                          </div>
-                          <div className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full text-white shadow-lg group-hover:scale-110 transition-transform">
-                              <Camera size={16} />
-                          </div>
-                      </div>
-                      <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-                  </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[40px] p-8 shadow-2xl border dark:border-slate-800 animate-in zoom-in-95 duration-200">
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-black tracking-tight">Your Profile</h2>
+                    <button onClick={() => setIsProfileOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400"><X size={20}/></button>
+                </div>
 
-                  <div className="space-y-6">
-                      <div>
-                          <label className="block text-xs font-black uppercase text-slate-400 dark:text-slate-500 mb-2 ml-1 tracking-widest">Username</label>
-                          <input
-                            type="text"
-                            className="w-full p-4 bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 rounded-2xl outline-none focus:border-blue-500 transition-all text-slate-900 dark:text-slate-100 font-bold"
+                <div className="flex flex-col items-center mb-8">
+                    <div className="w-32 h-32 rounded-[40px] bg-slate-100 dark:bg-slate-800 overflow-hidden mb-4 relative group border-4 border-white dark:border-slate-800 shadow-xl">
+                        {newAvatarUrl ? (
+                            <img src={newAvatarUrl} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-700"><UserIcon size={48} /></div>
+                        )}
+                        <button 
+                            onClick={() => avatarInputRef.current?.click()}
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all"
+                        >
+                            <Camera className="text-white" size={24} />
+                        </button>
+                    </div>
+                    <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Change Avatar</p>
+                </div>
+
+                <div className="space-y-6">
+                    <div>
+                        <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Username</label>
+                        <input 
+                            className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none focus:border-blue-500 border-2 border-transparent transition-all font-bold"
                             value={newUsername}
                             onChange={(e) => setNewUsername(e.target.value)}
-                            placeholder="Enter username"
-                          />
-                      </div>
-                      
-                      <button 
-                        onClick={updateProfile}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black p-4 rounded-2xl shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2 active:scale-95"
-                      >
+                            placeholder="e.g. creative_mind"
+                        />
+                    </div>
+                    <button 
+                        onClick={handleUpdateProfile}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/20 active:scale-95 transition-all uppercase text-xs tracking-widest"
+                    >
                         Save Changes
-                      </button>
-                  </div>
-              </div>
-          </div>
+                    </button>
+                </div>
+            </div>
+        </div>
       )}
 
-      {/* File Picker Modal */}
+      {/* File Picker for linking */}
       {isFilePickerOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-              <div className="w-full max-w-5xl h-[80vh] bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl relative border dark:border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                  <div className="p-6 border-b dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
-                      <div>
-                          <h2 className="text-2xl font-black">Select Resource</h2>
-                          <p className="text-sm text-slate-500 font-medium">Choose a file from your workspace to link.</p>
-                      </div>
-                      <button onClick={() => setIsFilePickerOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400">
-                          <X size={24} />
-                      </button>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+              <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[40px] p-8 shadow-2xl border dark:border-slate-800">
+                  <div className="flex justify-between items-center mb-8">
+                      <h2 className="text-2xl font-black">Link workspace resource</h2>
+                      <button onClick={() => setIsFilePickerOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400"><X size={20}/></button>
                   </div>
-                  
-                  <div className="flex-1 overflow-y-auto">
-                      <FileExplorer 
-                        workspaceId={workspaceId} 
-                        onSelect={handleResourceSelect}
-                      />
-                  </div>
+                  <FileExplorer 
+                    workspaceId={workspaceId} 
+                    isPicker 
+                    onSelect={(file) => {
+                        const link = file.type.startsWith('image/') 
+                            ? `\n![${file.name}](${file.url})\n`
+                            : `\n[📎 ${file.name}](${file.url})\n`;
+                        updateContent(content + link);
+                        setIsFilePickerOpen(false);
+                    }} 
+                  />
               </div>
           </div>
       )}

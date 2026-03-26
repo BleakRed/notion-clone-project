@@ -90,9 +90,9 @@ export default function Chat({ workspaceId, user }: { workspaceId: string, user:
                             )}
                         </div>
                         
-                        <div className={`max-w-[70%] space-y-1 ${msg.author.id === user?.id ? 'items-end' : ''}`}>
+                        <div className={`max-w-[80%] md:max-w-[70%] flex flex-col ${msg.author.id === user?.id ? 'items-end' : 'items-start'}`}>
                             <div className={`flex items-center gap-2 mb-1 ${msg.author.id === user?.id ? 'flex-row-reverse' : ''}`}>
-                                <span className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">
+                                <span className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">
                                     {msg.author.username || msg.author.email.split('@')[0]}
                                 </span>
                                 <span className="text-[10px] text-slate-400 flex items-center gap-1 font-bold">
@@ -100,7 +100,7 @@ export default function Chat({ workspaceId, user }: { workspaceId: string, user:
                                 </span>
                             </div>
                             
-                            <div className={`p-4 rounded-3xl shadow-sm text-sm font-medium ${
+                            <div className={`p-4 rounded-3xl shadow-sm text-sm font-medium w-fit break-words ${
                                 msg.author.id === user?.id 
                                 ? 'bg-blue-600 text-white rounded-tr-none' 
                                 : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border dark:border-slate-800 rounded-tl-none'
