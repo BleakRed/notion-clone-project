@@ -3,10 +3,11 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -17,6 +18,10 @@ model User {
   name           String?
   username       String?  @unique
   avatarUrl      String?
+  isVerified     Boolean  @default(false)
+  verificationToken String?
+  resetToken     String?
+  resetTokenExpiry DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   
@@ -44,7 +49,7 @@ model Workspace {
   files     File[]
   folders   Folder[]
   drawings  Drawing[]
-  chatMessages ChatMessage[]
+  chatRooms    ChatRoom[]
   kanbanBoards KanbanBoard[]
 }
 
@@ -64,7 +69,7 @@ model WorkspaceMember {
 model Page {
   id          String   @id @default(uuid())
   title       String
-  content     String   // JSON string or Markdown
+  content     String   @default("")
   workspaceId String
   authorId    String
   parentId    String?  // For nesting
@@ -121,15 +126,26 @@ model Drawing {
   author      User      @relation("DrawingAuthor", fields: [authorId], references: [id])
 }
 
-model ChatMessage {
+model ChatRoom {
   id          String   @id @default(uuid())
-  content     String
+  name        String
   workspaceId String
-  authorId    String
   createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  author      User      @relation("ChatAuthor", fields: [authorId], references: [id])
+  messages    ChatMessage[]
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  content     String
+  chatRoomId  String
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id])
+  author      User     @relation("ChatAuthor", fields: [authorId], references: [id])
 }
 
 model KanbanBoard {
@@ -169,4 +185,14 @@ model KanbanCard {
   column      KanbanColumn @relation(fields: [columnId], references: [id])
   author      User         @relation("Author", fields: [authorId], references: [id])
   assignees   User[]       @relation("CardAssignees")
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      String   @default("OPEN") // OPEN, RESOLVED
+  reporterId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

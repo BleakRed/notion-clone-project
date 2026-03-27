@@ -10,7 +10,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github.css';
 import { 
-  Eye, Edit2, Image as ImageIcon, Menu, X, Camera, User as UserIcon, Settings, Plus, Download
+  Eye, Edit2, Image as ImageIcon, Menu, X, Camera, User as UserIcon, Settings, Plus, Download, MessageSquare, Layout
 } from 'lucide-react';
 
 import Sidebar from '../../../components/Sidebar';
@@ -72,7 +72,11 @@ export default function Workspace() {
   const params = useParams();
   const workspaceId = params?.id as string;
   const [pages, setPages] = useState<Page[]>([]);
+  const [chatRooms, setChatRooms] = useState<any[]>([]);
+  const [kanbanBoards, setKanbanBoards] = useState<any[]>([]);
   const [selectedPage, setSelectedPage] = useState<Page | null>(null);
+  const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [selectedBoard, setSelectedBoard] = useState<any>(null);
   const [content, setContent] = useState('');
   const [isPreview, setIsPreview] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -90,17 +94,6 @@ export default function Workspace() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const downloadMarkdown = () => {
-    if (!selectedPage) return;
-    const element = document.createElement("a");
-    const file = new Blob([content], {type: 'text/markdown'});
-    element.href = URL.createObjectURL(file);
-    element.download = `${selectedPage.title || 'untitled'}.md`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
   useEffect(() => {
     const userData = Cookies.get('user');
     if (userData) {
@@ -115,6 +108,8 @@ export default function Workspace() {
     } else {
       fetchWorkspace();
       fetchPages();
+      fetchChatRooms();
+      fetchKanbanBoards();
       fetchMembers();
     }
 
@@ -124,8 +119,78 @@ export default function Workspace() {
     if (savedMode) document.documentElement.classList.add('dark');
   }, [workspaceId]);
 
+  const fetchChatRooms = async () => {
+    try {
+        const { data } = await api.get(`/chat/workspace/${workspaceId}/rooms`);
+        setChatRooms(data);
+        if (data.length > 0 && !selectedChat) setSelectedChat(data[0]);
+    } catch (err) {}
+  };
+
+  const fetchKanbanBoards = async () => {
+    try {
+        const { data } = await api.get(`/kanban/workspace/${workspaceId}`);
+        setKanbanBoards(data);
+        if (data.length > 0 && !selectedBoard) setSelectedBoard(data[0]);
+    } catch (err) {}
+  };
+
+  const handleCreateChat = async () => {
+      const name = prompt('Chat room name:');
+      if (!name) return;
+      try {
+          const { data } = await api.post(`/chat/workspace/${workspaceId}/rooms`, { name });
+          setChatRooms([...chatRooms, data]);
+          setSelectedChat(data);
+      } catch (err) {}
+  };
+
+  const handleCreateKanban = async () => {
+      const title = prompt('Board title:');
+      if (!title) return;
+      try {
+          const { data } = await api.post(`/kanban/workspace/${workspaceId}`, { title });
+          setKanbanBoards([...kanbanBoards, data]);
+          setSelectedBoard(data);
+      } catch (err) {}
+  };
+
+  const downloadMarkdown = () => {
+    if (!selectedPage) return;
+    const element = document.createElement("a");
+    const file = new Blob([content], {type: 'text/markdown'});
+    element.href = URL.createObjectURL(file);
+    element.download = `${selectedPage.title || 'untitled'}.md`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  useEffect(() => {
+    socket.emit('join-chat', workspaceId);
+
+    socket.on('page-created', (page: Page) => {
+        setPages(prev => [page, ...prev]);
+    });
+
+    socket.on('member-updated', (updatedUser: any) => {
+        setMembers(prev => prev.map(m => m.userId === updatedUser.id ? { ...m, user: updatedUser } : m));
+        if (updatedUser.id === user?.id) {
+            setUser(updatedUser);
+            Cookies.set('user', JSON.stringify(updatedUser));
+        }
+    });
+
+    return () => {
+        socket.emit('leave-chat', workspaceId);
+        socket.off('page-created');
+        socket.off('member-updated');
+    };
+  }, [workspaceId, user?.id]);
+
   useEffect(() => {
     if (selectedPage) {
+
       socket.emit('join-page', selectedPage.id);
       socket.on('page-updated', (newContent: string) => {
         setContent(newContent);
@@ -224,13 +289,15 @@ export default function Workspace() {
     else document.documentElement.classList.remove('dark');
   };
 
-  const handleUpdateProfile = async () => {
+  const handleUpdateProfile = async (removeAvatar = false) => {
     try {
         const { data } = await api.put('/auth/profile', {
             username: newUsername,
-            avatarUrl: newAvatarUrl
+            avatarUrl: removeAvatar ? null : newAvatarUrl,
+            removeAvatar
         });
         setUser(data);
+        setNewAvatarUrl(data.avatarUrl || '');
         Cookies.set('user', JSON.stringify(data));
         setIsProfileOpen(false);
         alert('Profile updated!');
@@ -300,13 +367,21 @@ export default function Workspace() {
         user={user}
         workspace={workspace}
         pages={pages}
+        chatRooms={chatRooms}
+        kanbanBoards={kanbanBoards}
         members={members}
         selectedPage={selectedPage}
+        selectedChat={selectedChat}
+        selectedBoard={selectedBoard}
         activeTab={activeTab}
         isDarkMode={isDarkMode}
         isOpen={isSidebarOpen}
         onSelectPage={handleSelectPage}
+        onSelectChat={setSelectedChat}
+        onSelectBoard={setSelectedBoard}
         onCreatePage={handleCreatePage}
+        onCreateChat={handleCreateChat}
+        onCreateKanban={handleCreateKanban}
         onTabChange={setActiveTab}
         onToggleDarkMode={handleToggleDarkMode}
         onToggleProfile={() => setIsProfileOpen(true)}
@@ -446,9 +521,23 @@ export default function Workspace() {
         ) : activeTab === 'canvas' ? (
           <DrawingCanvas workspaceId={workspaceId} />
         ) : activeTab === 'chat' ? (
-          <Chat workspaceId={workspaceId} user={user} />
+          selectedChat ? (
+            <Chat key={selectedChat.id} workspaceId={workspaceId} roomId={selectedChat.id} user={user} roomName={selectedChat.name} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-800 flex-col gap-6">
+                <MessageSquare size={64} />
+                <p className="text-2xl font-black">Select a chat room</p>
+            </div>
+          )
         ) : (
-          <KanbanBoard workspaceId={workspaceId} />
+          selectedBoard ? (
+            <KanbanBoard key={selectedBoard.id} workspaceId={workspaceId} boardId={selectedBoard.id} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-800 flex-col gap-6">
+                <Layout size={64} />
+                <p className="text-2xl font-black">Select a board</p>
+            </div>
+          )
         )}
       </div>
 
@@ -476,7 +565,10 @@ export default function Workspace() {
                         </button>
                     </div>
                     <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Change Avatar</p>
+                    <div className="flex gap-4">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] cursor-pointer hover:text-blue-500" onClick={() => avatarInputRef.current?.click()}>Change Avatar</p>
+                        {newAvatarUrl && <p className="text-[10px] font-black uppercase text-red-400 tracking-[0.2em] cursor-pointer hover:text-red-600" onClick={() => handleUpdateProfile(true)}>Remove Picture</p>}
+                    </div>
                 </div>
 
                 <div className="space-y-6">
@@ -490,7 +582,7 @@ export default function Workspace() {
                         />
                     </div>
                     <button 
-                        onClick={handleUpdateProfile}
+                        onClick={() => handleUpdateProfile(false)}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-500/20 active:scale-95 transition-all uppercase text-xs tracking-widest"
                     >
                         Save Changes

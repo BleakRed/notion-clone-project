@@ -35,6 +35,13 @@ router.post('/workspace/:workspaceId', authenticateToken, async (req: AuthReques
             { title: 'Done', order: 2, color: '#10b981' }, // Green
           ]
         }
+      },
+      include: {
+        columns: {
+          include: {
+            cards: true
+          }
+        }
       }
     });
     res.json(board);
@@ -172,12 +179,23 @@ router.put('/columns/:columnId', authenticateToken, async (req: AuthRequest, res
     try {
         const { columnId } = req.params;
         const { title, color } = req.body;
+        const userId = req.user!.userId;
+
+        const column = await prisma.kanbanColumn.findUnique({
+            where: { id: columnId },
+            include: { board: { include: { workspace: true } } }
+        });
+
+        if (!column) return res.status(404).json({ error: 'Column not found' });
+        if (column.board.workspace.ownerId !== userId) {
+            return res.status(403).json({ error: 'Only the workspace owner can edit columns' });
+        }
         
-        const column = await prisma.kanbanColumn.update({
+        const updatedColumn = await prisma.kanbanColumn.update({
             where: { id: columnId },
             data: { title, color }
         });
-        res.json(column);
+        res.json(updatedColumn);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update column' });
     }

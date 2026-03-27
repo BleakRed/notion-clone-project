@@ -1,16 +1,38 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: notion-db
+    restart: always
+    environment:
+      - POSTGRES_USER=notion_user
+      - POSTGRES_PASSWORD=notion_pass
+      - POSTGRES_DB=notion_clone
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notion_user -d notion_clone"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   backend:
     build: ./backend
     container_name: notion-backend
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/prisma/dev.db:/app/prisma/dev.db
       - ./backend/uploads:/app/uploads
     environment:
-      - DATABASE_URL=file:./dev.db
+      - DATABASE_URL=postgresql://notion_user:notion_pass@db:5432/notion_clone?schema=public
       - JWT_SECRET=supersecret_dev_key
       - PORT=8000
+      - FRONTEND_URL=http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -25,3 +47,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import api from '../../lib/api';
-import { Layout, Plus, LogOut, ChevronRight, User as UserIcon, Settings, Search, Grid, List as ListIcon } from 'lucide-react';
+import { Layout, Plus, LogOut, ChevronRight, User as UserIcon, Settings, Search, Grid, List as ListIcon, Sun, Moon } from 'lucide-react';
 
 interface Workspace {
   id: string;
@@ -41,6 +41,17 @@ export default function Dashboard() {
 
     fetchWorkspaces();
   }, []);
+
+  const toggleTheme = () => {
+    const newVal = !isDarkMode;
+    setIsDarkMode(newVal);
+    localStorage.setItem('theme', newVal ? 'dark' : 'light');
+    if (newVal) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const fetchWorkspaces = async () => {
     try {
@@ -83,7 +94,14 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400">
+            <button 
+                onClick={toggleTheme} 
+                className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-all border dark:border-slate-800 shadow-sm"
+                title="Toggle Theme"
+            >
+                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 border dark:border-slate-700">
                <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 overflow-hidden border dark:border-slate-600 flex items-center justify-center">
                     {user?.avatarUrl ? (
                         <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />

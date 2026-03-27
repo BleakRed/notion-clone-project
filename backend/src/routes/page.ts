@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 const router = Router();
 
 // Create page
-router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticateToken, async (req: any, res: Response) => {
   try {
     const { title, workspaceId, parentId } = req.body;
     const authorId = req.user!.userId;
@@ -20,6 +20,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         parentId
       }
     });
+
+    req.io.to(`chat-${workspaceId}`).emit('page-created', page);
 
     res.json(page);
   } catch (error) {

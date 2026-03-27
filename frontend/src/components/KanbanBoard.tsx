@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import { socket } from '../lib/socket';
+import Cookies from 'js-cookie';
 
 interface Card {
     id: string;
@@ -40,12 +41,11 @@ interface Board {
     columns: Column[];
 }
 
-export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
-    const [boards, setBoards] = useState<Board[]>([]);
+export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: string, boardId: string }) {
     const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
+    const [workspace, setWorkspace] = useState<any>(null);
+    const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [isCreatingBoard, setIsCreatingBoard] = useState(false);
-    const [newBoardTitle, setNewBoardTitle] = useState('');
     const [members, setMembers] = useState<any[]>([]);
     const [editingCard, setEditingCard] = useState<Card | null>(null);
     const [cardEditData, setCardEditData] = useState({ content: '', description: '' });
@@ -56,34 +56,36 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
     ];
 
     useEffect(() => {
-        fetchBoards();
+        const userData = Cookies.get('user');
+        if (userData) setUser(JSON.parse(userData));
+        
         fetchMembers();
-    }, [workspaceId]);
+        fetchWorkspace();
+        fetchBoardDetails(boardId);
+    }, [workspaceId, boardId]);
 
     useEffect(() => {
-        if (selectedBoard) {
-            socket.emit('join-kanban', selectedBoard.id);
+        if (boardId) {
+            socket.emit('join-kanban', boardId);
             socket.on('kanban-updated', () => {
-                fetchBoardDetails(selectedBoard.id);
+                fetchBoardDetails(boardId);
             });
             return () => {
-                socket.emit('leave-kanban', selectedBoard.id);
+                socket.emit('leave-kanban', boardId);
                 socket.off('kanban-updated');
             };
         }
-    }, [selectedBoard?.id]);
+    }, [boardId]);
 
-    const fetchBoards = async () => {
+    const fetchWorkspace = async () => {
         try {
-            const { data } = await api.get(`/kanban/workspace/${workspaceId}`);
-            setBoards(data);
-            if (data.length > 0 && !selectedBoard) {
-                fetchBoardDetails(data[0].id);
-            } else {
-                setLoading(false);
-            }
+            const { data } = await api.get('/workspaces');
+            const current = data.find((w: any) => w.id === workspaceId);
+            setWorkspace(current);
         } catch (err) {}
     };
+
+    const isOwner = workspace?.ownerId === user?.id;
 
     const fetchMembers = async () => {
         try {
@@ -92,25 +94,14 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
         } catch (err) {}
     };
 
-    const fetchBoardDetails = async (boardId: string) => {
+    const fetchBoardDetails = async (id: string) => {
         try {
-            const { data } = await api.get(`/kanban/board/${boardId}`);
+            setLoading(true);
+            const { data } = await api.get(`/kanban/board/${id}`);
             setSelectedBoard(data);
         } catch (err) {} finally {
             setLoading(false);
         }
-    };
-
-    const createBoard = async () => {
-        if (!newBoardTitle.trim()) return;
-        try {
-            const { data } = await api.post(`/kanban/workspace/${workspaceId}`, { title: newBoardTitle });
-            setBoards([data, ...boards]);
-            setSelectedBoard(data);
-            setIsCreatingBoard(false);
-            setNewBoardTitle('');
-            fetchBoardDetails(data.id);
-        } catch (err) {}
     };
 
     const addCard = async (columnId: string) => {
@@ -118,8 +109,8 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
         if (!content) return;
         try {
             await api.post(`/kanban/columns/${columnId}/cards`, { content });
-            socket.emit('update-kanban', selectedBoard?.id);
-            fetchBoardDetails(selectedBoard!.id);
+            socket.emit('update-kanban', boardId);
+            fetchBoardDetails(boardId);
         } catch (err) {}
     };
 
@@ -127,8 +118,8 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
         if (!editingCard) return;
         try {
             await api.put(`/kanban/cards/${editingCard.id}`, cardEditData);
-            socket.emit('update-kanban', selectedBoard?.id);
-            fetchBoardDetails(selectedBoard!.id);
+            socket.emit('update-kanban', boardId);
+            fetchBoardDetails(boardId);
             setEditingCard(null);
         } catch (err) {}
     };
@@ -136,16 +127,19 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
     const moveCard = async (cardId: string, targetColumnId: string) => {
         try {
             await api.put(`/kanban/cards/${cardId}`, { columnId: targetColumnId });
-            socket.emit('update-kanban', selectedBoard?.id);
-            fetchBoardDetails(selectedBoard!.id);
+            socket.emit('update-kanban', boardId);
+            fetchBoardDetails(boardId);
         } catch (err) {}
     };
 
     const assignCard = async (cardId: string, userId: string) => {
         try {
-            await api.put(`/kanban/cards/${cardId}/assign`, { userId });
-            socket.emit('update-kanban', selectedBoard?.id);
-            fetchBoardDetails(selectedBoard!.id);
+            const { data } = await api.put(`/kanban/cards/${cardId}/assign`, { userId });
+            socket.emit('update-kanban', boardId);
+            fetchBoardDetails(boardId);
+            if (editingCard?.id === cardId) {
+                setEditingCard(prev => prev ? { ...prev, assignees: data.assignees } : null);
+            }
         } catch (err) {}
     };
 
@@ -153,8 +147,8 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
         if (!confirm('Delete this card?')) return;
         try {
             await api.delete(`/kanban/cards/${cardId}`);
-            socket.emit('update-kanban', selectedBoard?.id);
-            fetchBoardDetails(selectedBoard!.id);
+            socket.emit('update-kanban', boardId);
+            fetchBoardDetails(boardId);
         } catch (err) {}
     };
 
@@ -162,17 +156,17 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
         const title = prompt('Column title:');
         if (!title) return;
         try {
-            await api.post(`/kanban/board/${selectedBoard?.id}/columns`, { title });
-            socket.emit('update-kanban', selectedBoard?.id);
-            fetchBoardDetails(selectedBoard!.id);
+            await api.post(`/kanban/board/${boardId}/columns`, { title });
+            socket.emit('update-kanban', boardId);
+            fetchBoardDetails(boardId);
         } catch (err) {}
     };
 
     const updateColumn = async (columnId: string, data: { title?: string, color?: string }) => {
         try {
             await api.put(`/kanban/columns/${columnId}`, data);
-            socket.emit('update-kanban', selectedBoard?.id);
-            fetchBoardDetails(selectedBoard!.id);
+            socket.emit('update-kanban', boardId);
+            fetchBoardDetails(boardId);
             setEditingColumn(null);
         } catch (err) {}
     };
@@ -190,57 +184,18 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
         moveCard(cardId, targetColumnId);
     };
 
-    if (loading) return <div className="flex-1 flex items-center justify-center font-bold uppercase tracking-widest text-slate-400">Loading Boards...</div>;
+    if (loading) return <div className="flex-1 flex items-center justify-center font-bold uppercase tracking-widest text-slate-400">Loading Board...</div>;
 
-    if (boards.length === 0 && !isCreatingBoard) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
-                <div className="p-8 bg-slate-100 dark:bg-slate-900 rounded-[40px] shadow-sm">
-                    <Layout size={64} className="text-slate-300 dark:text-slate-700" />
-                </div>
-                <div>
-                    <h2 className="text-2xl font-black">No Kanban Boards</h2>
-                    <p className="text-slate-500 font-medium mt-2">Create your first board to start managing tasks.</p>
-                </div>
-                <button 
-                    onClick={() => setIsCreatingBoard(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-2xl shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
-                >
-                    Create Board
-                </button>
-            </div>
-        );
-    }
+    if (!selectedBoard) return <div className="flex-1 flex items-center justify-center">Board not found</div>;
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
-            <style jsx global>{`
-                @keyframes card-in {
-                    from { opacity: 0; transform: translateY(10px) scale(0.95); }
-                    to { opacity: 1; transform: translateY(0) scale(1); }
-                }
-                .card-animation {
-                    animation: card-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-                }
-            `}</style>
-
             {/* Kanban Header */}
             <div className="p-4 md:p-8 bg-white dark:bg-slate-900 border-b dark:border-slate-800 shadow-sm z-10">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <div className="flex items-center gap-3">
-                            <select 
-                                className="text-2xl font-black bg-transparent outline-none cursor-pointer hover:text-blue-600 transition-colors"
-                                value={selectedBoard?.id || ''}
-                                onChange={(e) => fetchBoardDetails(e.target.value)}
-                            >
-                                {boards.map(b => <option key={b.id} value={b.id}>{b.title}</option>)}
-                            </select>
-                            <button onClick={() => setIsCreatingBoard(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400">
-                                <Plus size={20} />
-                            </button>
-                        </div>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Task management for {selectedBoard?.title}</p>
+                        <h2 className="text-2xl font-black">{selectedBoard.title}</h2>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Task management board.</p>
                     </div>
 
                     <button 
@@ -255,7 +210,7 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
             {/* Board Area */}
             <div className="flex-1 overflow-x-auto overflow-y-auto p-4 md:p-8 scrollbar-thin">
                 <div className="flex gap-6 h-fit min-w-max pb-8 items-start">
-                    {selectedBoard?.columns.map((column, colIndex) => (
+                    {selectedBoard.columns.map((column) => (
                         <div 
                             key={column.id} 
                             className="w-80 flex flex-col h-fit max-h-full bg-slate-100/50 dark:bg-slate-900/30 rounded-[32px] border dark:border-slate-800/50 shadow-sm transition-all duration-300"
@@ -271,12 +226,14 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
                                     </h3>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <button 
-                                        onClick={() => setEditingColumn(editingColumn?.id === column.id ? null : column)}
-                                        className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-all"
-                                    >
-                                        <Palette size={16} />
-                                    </button>
+                                    {isOwner && (
+                                        <button 
+                                            onClick={() => setEditingColumn(editingColumn?.id === column.id ? null : column)}
+                                            className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-all"
+                                        >
+                                            <Palette size={16} />
+                                        </button>
+                                    )}
                                     <button onClick={() => addCard(column.id)} className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-all">
                                         <Plus size={18} />
                                     </button>
@@ -303,7 +260,7 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
                                         key={card.id} 
                                         draggable 
                                         onDragStart={(e) => onDragStart(e, card.id)}
-                                        className="card-animation bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border-l-4 border dark:border-slate-800/50 group cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200"
+                                        className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border-l-4 border dark:border-slate-800/50 group cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200"
                                         style={{ borderLeftColor: column.color || '#3b82f6' }}
                                     >
                                         <div className="flex justify-between items-start gap-2 mb-2">
@@ -352,12 +309,6 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
                                         </div>
                                     </div>
                                 ))}
-                                
-                                {column.cards.length === 0 && (
-                                    <div className="py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] flex flex-col items-center justify-center text-slate-300 dark:text-slate-800">
-                                        <p className="text-xs font-black uppercase tracking-widest">No cards</p>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     ))}
@@ -366,8 +317,8 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
 
             {/* Card Edit Modal */}
             {editingCard && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl border dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl border dark:border-slate-800 overflow-hidden">
                         <div className="p-8 border-b dark:border-slate-800 flex justify-between items-center">
                             <h3 className="text-2xl font-black">Card Details</h3>
                             <button onClick={() => setEditingCard(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-400"><X size={24} /></button>
@@ -393,9 +344,7 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
                                         onChange={(e) => setCardEditData({ ...cardEditData, description: e.target.value })}
                                     />
                                 </div>
-                                <div className="flex gap-4">
-                                    <button onClick={updateCard} className="flex-1 bg-blue-600 text-white font-black p-4 rounded-2xl shadow-xl shadow-blue-500/20 transition-all uppercase text-xs tracking-widest active:scale-95">Save Changes</button>
-                                </div>
+                                <button onClick={updateCard} className="w-full bg-blue-600 text-white font-black p-4 rounded-2xl shadow-xl shadow-blue-500/20 transition-all uppercase text-xs tracking-widest active:scale-95">Save Changes</button>
                             </div>
 
                             <div className="w-full md:w-48">
@@ -419,31 +368,6 @@ export default function KanbanBoard({ workspaceId }: { workspaceId: string }) {
                                     })}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Create Board Modal */}
-            {isCreatingBoard && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[40px] p-8 shadow-2xl border dark:border-slate-800 animate-in zoom-in-95 duration-200">
-                        <h3 className="text-2xl font-black mb-2">New Kanban Board</h3>
-                        <p className="text-slate-500 text-sm mb-8 font-medium">Define a title for your new workspace board.</p>
-                        
-                        <input 
-                            autoFocus
-                            type="text"
-                            className="w-full p-5 bg-slate-50 dark:bg-slate-800 rounded-[24px] outline-none focus:border-blue-500 border-2 border-transparent transition-all font-bold mb-8 text-lg"
-                            placeholder="Board title (e.g. Sprint 1)"
-                            value={newBoardTitle}
-                            onChange={(e) => setNewBoardTitle(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && createBoard()}
-                        />
-                        
-                        <div className="flex gap-4">
-                            <button onClick={() => setIsCreatingBoard(false)} className="flex-1 p-5 font-black text-slate-400 hover:text-slate-600 transition-colors uppercase text-xs tracking-widest">Cancel</button>
-                            <button onClick={createBoard} className="flex-1 bg-blue-600 text-white font-black p-5 rounded-2xl shadow-xl shadow-blue-500/20 active:scale-95 transition-all uppercase text-xs tracking-widest">Create Board</button>
                         </div>
                     </div>
                 </div>

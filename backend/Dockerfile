@@ -29,5 +29,5 @@ RUN mkdir -p uploads
 EXPOSE 8000
 
 # Start the application
-# We use a shell command to run migrations before starting
-CMD npx prisma db push --accept-data-loss && npm start
+# We use a safety sleep to ensure the DB process is fully stabilized before Prisma connects
+CMD sleep 5 && npx prisma db push --accept-data-loss && npm start

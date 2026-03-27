@@ -1,0 +1,8 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/dashboard/page": "/dashboard",
+  "/reset-password/page": "/reset-password",
+  "/page": "/",
+  "/verify-email/page": "/verify-email",
+  "/workspace/[id]/page": "/workspace/[id]"
+}

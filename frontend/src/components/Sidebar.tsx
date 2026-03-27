@@ -3,22 +3,30 @@
 import { 
   Home, UserMinus, Plus, LogOut, Sun, Moon, User as UserIcon, 
   Settings, Send, Menu, X, FileText, HardDrive, Palette,
-  MessageSquare, Layout
+  MessageSquare, Layout, ChevronRight, UserPlus
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
+import { useState } from 'react';
 
 interface SidebarProps {
   user: any;
   workspace: any;
   pages: any[];
+  chatRooms: any[];
+  kanbanBoards: any[];
   members: any[];
   selectedPage: any;
+  selectedChat: any;
+  selectedBoard: any;
   activeTab: string;
   isDarkMode: boolean;
   isOpen: boolean;
   onSelectPage: (page: any) => void;
+  onSelectChat: (room: any) => void;
+  onSelectBoard: (board: any) => void;
   onCreatePage: () => void;
+  onCreateChat: () => void;
+  onCreateKanban: () => void;
   onTabChange: (tab: string) => void;
   onToggleDarkMode: () => void;
   onToggleProfile: () => void;
@@ -29,13 +37,23 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
-  user, workspace, pages, members, selectedPage, activeTab, 
-  isDarkMode, isOpen, onSelectPage, onCreatePage, onTabChange,
+  user, workspace, pages, chatRooms, kanbanBoards, members, 
+  selectedPage, selectedChat, selectedBoard, activeTab, 
+  isDarkMode, isOpen, onSelectPage, onSelectChat, onSelectBoard,
+  onCreatePage, onCreateChat, onCreateKanban, onTabChange,
   onToggleDarkMode, onToggleProfile, onInvite, onRemoveMember, 
   onLogout, onClose
 }: SidebarProps) {
   const router = useRouter();
   const isOwner = workspace?.ownerId === user?.id;
+  const [inviteEmail, setInviteEmail] = useState('');
+
+  const handleInviteSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    onInvite(inviteEmail);
+    setInviteEmail('');
+  };
 
   return (
     <>
@@ -69,7 +87,7 @@ export default function Sidebar({
                 <span className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
                     {user?.username || user?.email.split('@')[0]}
                 </span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Profile Settings</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Profile</span>
              </div>
           </div>
           
@@ -94,68 +112,116 @@ export default function Sidebar({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-col gap-1 mb-8">
+        <div className="flex flex-col gap-1 mb-6">
             <button 
                 onClick={() => onTabChange('pages')}
-                className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'pages' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                className={`flex items-center gap-3 p-2.5 rounded-xl font-bold transition-all ${activeTab === 'pages' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
             >
                 <FileText size={18} /> Pages
             </button>
             <button 
-                onClick={() => onTabChange('files')}
-                className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'files' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-            >
-                <HardDrive size={18} /> Files
-            </button>
-            <button 
-                onClick={() => onTabChange('canvas')}
-                className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'canvas' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-            >
-                <Palette size={18} /> Canvas
-            </button>
-            <button 
                 onClick={() => onTabChange('chat')}
-                className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'chat' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                className={`flex items-center gap-3 p-2.5 rounded-xl font-bold transition-all ${activeTab === 'chat' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
             >
                 <MessageSquare size={18} /> Chat
             </button>
             <button 
                 onClick={() => onTabChange('kanban')}
-                className={`flex items-center gap-3 p-3 rounded-xl font-bold transition-all ${activeTab === 'kanban' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                className={`flex items-center gap-3 p-2.5 rounded-xl font-bold transition-all ${activeTab === 'kanban' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
             >
                 <Layout size={18} /> Kanban
             </button>
+            <button 
+                onClick={() => onTabChange('files')}
+                className={`flex items-center gap-3 p-2.5 rounded-xl font-bold transition-all ${activeTab === 'files' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+            >
+                <HardDrive size={18} /> Files
+            </button>
+            <button 
+                onClick={() => onTabChange('canvas')}
+                className={`flex items-center gap-3 p-2.5 rounded-xl font-bold transition-all ${activeTab === 'canvas' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm border border-slate-200 dark:border-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+            >
+                <Palette size={18} /> Canvas
+            </button>
         </div>
 
-        {activeTab === 'pages' && (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <button 
-                onClick={onCreatePage} 
-                className="flex items-center gap-3 text-left p-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl mb-4 font-bold shadow-sm border border-slate-200 dark:border-slate-700 transition-all text-slate-700 dark:text-slate-200 active:scale-95"
-                >
-                <div className="bg-blue-600 p-1 rounded-md text-white"><Plus size={16} /></div>
-                New Page
-                </button>
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {activeTab === 'pages' && (
+                <>
+                    <button 
+                    onClick={onCreatePage} 
+                    className="flex items-center gap-3 text-left p-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl mb-4 font-bold shadow-sm border border-slate-200 dark:border-slate-700 transition-all text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                        <div className="bg-blue-600 p-1 rounded-md text-white"><Plus size={14} /></div>
+                        New Page
+                    </button>
+                    <div className="flex-1 overflow-y-auto space-y-1 px-1 scrollbar-hide">
+                        {pages.map(p => (
+                            <div
+                            key={p.id}
+                            onClick={() => onSelectPage(p)}
+                            className={`p-2 rounded-lg cursor-pointer truncate text-xs transition-all flex items-center gap-2 ${selectedPage?.id === p.id ? 'bg-white dark:bg-slate-800 shadow-sm font-bold border border-slate-200 dark:border-slate-700 text-blue-600' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+                            >
+                            <FileText size={14} className={selectedPage?.id === p.id ? 'text-blue-600' : 'text-slate-400'} />
+                            {p.title || 'Untitled'}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
 
-                <div className="flex-1 overflow-y-auto space-y-1.5 px-1 scrollbar-hide">
-                    {pages.map(p => (
-                        <div
-                        key={p.id}
-                        onClick={() => onSelectPage(p)}
-                        className={`p-2.5 rounded-lg cursor-pointer truncate text-sm transition-all flex items-center gap-2 ${selectedPage?.id === p.id ? 'bg-white dark:bg-slate-800 shadow-sm font-bold border border-slate-200 dark:border-slate-700 text-blue-600' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
-                        >
-                        <div className={`w-1.5 h-1.5 rounded-full ${selectedPage?.id === p.id ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`} />
-                        {p.title || 'Untitled'}
-                        </div>
-                    ))}
-                    {pages.length === 0 && <p className="text-xs text-slate-400 dark:text-slate-600 text-center mt-4 italic">No pages yet</p>}
-                </div>
-            </div>
-        )}
+            {activeTab === 'chat' && (
+                <>
+                    <button 
+                    onClick={onCreateChat} 
+                    className="flex items-center gap-3 text-left p-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl mb-4 font-bold shadow-sm border border-slate-200 dark:border-slate-700 transition-all text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                        <div className="bg-blue-600 p-1 rounded-md text-white"><Plus size={14} /></div>
+                        New Chat Room
+                    </button>
+                    <div className="flex-1 overflow-y-auto space-y-1 px-1 scrollbar-hide">
+                        {chatRooms.map(r => (
+                            <div
+                            key={r.id}
+                            onClick={() => onSelectChat(r)}
+                            className={`p-2 rounded-lg cursor-pointer truncate text-xs transition-all flex items-center gap-2 ${selectedChat?.id === r.id ? 'bg-white dark:bg-slate-800 shadow-sm font-bold border border-slate-200 dark:border-slate-700 text-blue-600' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+                            >
+                            <MessageSquare size={14} className={selectedChat?.id === r.id ? 'text-blue-600' : 'text-slate-400'} />
+                            {r.name}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {activeTab === 'kanban' && (
+                <>
+                    <button 
+                    onClick={onCreateKanban} 
+                    className="flex items-center gap-3 text-left p-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl mb-4 font-bold shadow-sm border border-slate-200 dark:border-slate-700 transition-all text-slate-700 dark:text-slate-200 active:scale-95"
+                    >
+                        <div className="bg-blue-600 p-1 rounded-md text-white"><Plus size={14} /></div>
+                        New Board
+                    </button>
+                    <div className="flex-1 overflow-y-auto space-y-1 px-1 scrollbar-hide">
+                        {kanbanBoards.map(b => (
+                            <div
+                            key={b.id}
+                            onClick={() => onSelectBoard(b)}
+                            className={`p-2 rounded-lg cursor-pointer truncate text-xs transition-all flex items-center gap-2 ${selectedBoard?.id === b.id ? 'bg-white dark:bg-slate-800 shadow-sm font-bold border border-slate-200 dark:border-slate-700 text-blue-600' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+                            >
+                            <Layout size={14} className={selectedBoard?.id === b.id ? 'text-blue-600' : 'text-slate-400'} />
+                            {b.title}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
 
         {/* Bottom Section */}
         <div className="mt-auto border-t dark:border-slate-800 pt-6 px-1">
-          <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 mb-3 tracking-widest">Active Members</h3>
+          <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 mb-3 tracking-widest">Team Members</h3>
           <div className="space-y-3 mb-6 max-h-40 overflow-y-auto pr-1">
             {members.map((m: any) => (
               <div key={m.userId} className="flex justify-between items-center text-xs group">
@@ -169,13 +235,12 @@ export default function Sidebar({
                             </div>
                         )}
                     </div>
-                    <span className="truncate text-slate-600 dark:text-slate-400 font-medium" title={m.user.email}>{m.user.username || m.user.email.split('@')[0]}</span>
+                    <span className="truncate text-slate-600 dark:text-slate-400 font-medium">{m.user.username || m.user.email.split('@')[0]}</span>
                 </div>
                 {isOwner && m.userId !== user?.id && (
                   <button 
                     onClick={() => onRemoveMember(m.userId)} 
                     className="text-red-400 opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all bg-red-50 dark:bg-red-950/20 p-1 rounded"
-                    title="Remove member"
                   >
                     <UserMinus size={14} />
                   </button>
@@ -185,27 +250,26 @@ export default function Sidebar({
           </div>
 
           {isOwner && (
-            <div className="flex flex-col gap-2">
-                <form onSubmit={(e) => { e.preventDefault(); onInvite(new FormData(e.currentTarget).get('email') as string); e.currentTarget.reset(); }}>
-                    <div className="relative group">
-                        <input
-                        name="email"
-                        type="email"
-                        placeholder="Invite email..."
-                        className="text-xs w-full p-2.5 pr-10 border dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 outline-none focus:border-blue-500 dark:focus:border-blue-500 transition-all text-slate-800 dark:text-slate-200 shadow-sm"
-                        required
-                        />
-                        <button type="submit" className="absolute right-2.5 top-2.5 text-slate-400 group-hover:text-blue-500 transition-colors">
-                            <Send size={16} />
-                        </button>
-                    </div>
-                </form>
+            <div className="mb-6 p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+               <h3 className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mb-2 tracking-widest">Invite Team</h3>
+               <form onSubmit={handleInviteSubmit} className="flex gap-2">
+                  <input 
+                    type="email" 
+                    placeholder="Email address"
+                    className="flex-1 bg-white dark:bg-slate-900 border dark:border-slate-700 rounded-lg p-2 text-[10px] font-bold outline-none focus:border-blue-500 transition-all"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                  />
+                  <button type="submit" className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md shadow-blue-500/20 active:scale-95">
+                    <UserPlus size={14} />
+                  </button>
+               </form>
             </div>
           )}
-          
+
           <button 
             onClick={onLogout}
-            className="w-full mt-6 p-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
+            className="w-full mt-2 p-2 flex items-center justify-center gap-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
           >
             <LogOut size={16} /> Logout
           </button>

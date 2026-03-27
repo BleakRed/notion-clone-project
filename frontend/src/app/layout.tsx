@@ -13,7 +13,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="h-screen w-screen overflow-hidden bg-white text-black font-sans antialiased">
+      <body className="min-h-screen w-full bg-white text-black font-sans antialiased overflow-x-hidden">
+        <div id="loading-bar" className="fixed top-0 left-0 h-1 bg-blue-600 z-[9999] transition-all duration-300 w-0"></div>
         {children}
       </body>
     </html>

@@ -61,18 +61,14 @@ export const setupSocket = (io: Server) => {
     });
 
     // Chat Events
-    socket.on('join-chat', (workspaceId: string) => {
-        socket.join(`chat-${workspaceId}`);
-        console.log(`Socket ${socket.id} joined chat ${workspaceId}`);
+    socket.on('join-chat', (roomId: string) => {
+        socket.join(`chat-room-${roomId}`);
+        console.log(`Socket ${socket.id} joined chat room ${roomId}`);
     });
 
-    socket.on('leave-chat', (workspaceId: string) => {
-        socket.leave(`chat-${workspaceId}`);
-        console.log(`Socket ${socket.id} left chat ${workspaceId}`);
-    });
-
-    socket.on('send-message', (data: { workspaceId: string, message: any }) => {
-        socket.to(`chat-${data.workspaceId}`).emit('message-received', data.message);
+    socket.on('leave-chat', (roomId: string) => {
+        socket.leave(`chat-room-${roomId}`);
+        console.log(`Socket ${socket.id} left chat room ${roomId}`);
     });
 
     // Kanban Events
