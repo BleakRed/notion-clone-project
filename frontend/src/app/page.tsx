@@ -225,7 +225,7 @@ export default function LandingPage() {
                       onClick={() => setIsForgot(true)}
                       className="text-xs text-blue-500 hover:underline font-bold"
                     >
-                      Forgot Password?(doesn't work)
+                      Forgot Password?
                     </button>
                   </div>
                 )}

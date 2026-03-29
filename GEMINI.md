@@ -19,6 +19,15 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 
 ## ✨ Implemented Features
 - **Adaptive Dashboard**: Responsive grid showing workspaces with real-time member avatars and "+N" counts.
+- **Email System**:
+    - Real-time verification emails via **Nodemailer**.
+    - Secure password reset flow with token expiration.
+- **Automated System Maintenance**:
+    - **Cleanup Script**: Daily scheduled task via **node-cron** that removes unverified users (older than 1 month) and orphaned workspaces.
+    - **Physical File Deletion**: Automated removal of local storage files when associated database records are deleted.
+- **Dockerized Architecture**:
+    - Standardized environment with **Docker Compose**.
+    - Root `.env` synchronization for seamless build-time and run-time configuration.
 - **Collaborative Editor**: 
     - Real-time Markdown editing with live previews.
     - Caret-based cursors that scroll with the content.
@@ -47,6 +56,9 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **Profile System**: Users can update usernames and avatars, which sync across the dashboard and collaborative cursors.
 
 ## 🔍 Context for Continuation
+- **Maintenance**: The cleanup script is located at `backend/src/scripts/cleanup.ts` and triggered in `backend/src/index.ts`.
+- **Email**: Utility functions for transactional emails are in `backend/src/utils/mailer.ts`.
+- **Cascading Deletes**: Prisma schema now uses `onDelete: Cascade` for all major entities to ensure clean deletions of orphaned resources.
 - **Socket Rooms**:
     - Pages: `join-page` (room: `pageId`).
     - Drawing: `join-drawing` (room: `drawing-{workspaceId}`).
@@ -56,4 +68,4 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **Database Status**: Managed via `prisma db push`. Schema includes `Folder`, `File`, `Drawing`, `ChatMessage`, `KanbanBoard`, `KanbanColumn`, and `KanbanCard`.
 
 ---
-*Last Updated: Thursday, March 26, 2026*
+*Last Updated: Sunday, March 29, 2026*

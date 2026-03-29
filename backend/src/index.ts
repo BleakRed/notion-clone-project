@@ -13,6 +13,8 @@ import chatRoutes from './routes/chat';
 import kanbanRoutes from './routes/kanban';
 import adminRoutes from './routes/admin';
 import { setupSocket } from './socket';
+import cron from 'node-cron';
+import { runFullCleanup } from './scripts/cleanup';
 
 dotenv.config();
 
@@ -49,6 +51,11 @@ app.use('/api/admin', adminRoutes);
 
 // Socket
 setupSocket(io);
+
+// Scheduled Cleanup: Run every day at midnight
+cron.schedule('0 0 * * *', () => {
+    runFullCleanup();
+});
 
 const PORT = process.env.PORT || 8000;
 

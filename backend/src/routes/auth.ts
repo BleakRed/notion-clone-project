@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import crypto from 'crypto';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/mailer';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -36,8 +37,12 @@ router.post('/register', async (req: Request, res: Response) => {
       }
     });
 
-    // Mock Email Sending
-    console.log(`Verification link: ${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`);
+    try {
+        await sendVerificationEmail(user.email, verificationToken);
+    } catch (mailError) {
+        console.error('Failed to send verification email:', mailError);
+        // We don't fail registration if email fails, but maybe we should or at least inform the user
+    }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1d' });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, avatarUrl: user.avatarUrl, isVerified: user.isVerified } });
@@ -80,8 +85,12 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
             data: { resetToken, resetTokenExpiry }
         });
 
-        // Mock Email Sending
-        console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`);
+        try {
+            await sendPasswordResetEmail(user.email, resetToken);
+        } catch (mailError) {
+            console.error('Failed to send reset email:', mailError);
+            return res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
+        }
 
         res.json({ message: 'Password reset link sent to your email' });
     } catch (error) {

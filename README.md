@@ -35,10 +35,11 @@ This project is a full-stack, real-time collaborative workspace application insp
 - **Dark Mode Support:** A built-in toggle to switch between Light and Dark themes.
 - **User Profiles:** Customize your username and avatar to personalize your presence.
 
-### 6. **Workspace & Member Management**
+### 6. **Advanced Security & System Maintenance**
 
-- **Owner Privileges:** Manage workspace membership (invites and removals).
-- **Access Control:** Strict authorization ensures only members can access workspace data.
+- **Email Verification:** Secure account registration with mandatory email verification and password reset functionality via **Nodemailer**.
+- **Automated Cleanup:** Built-in scheduled task (**node-cron**) that deletes unverified accounts after 1 month and removes orphaned workspaces and their physical files to prevent storage bloat.
+- **Dockerized Deployment:** Fully containerized environment with **Docker Compose**, supporting easy environment variable management via root `.env`.
 
 ---
 
@@ -48,7 +49,9 @@ This project is a full-stack, real-time collaborative workspace application insp
 
 - **Node.js & Express:** Robust REST API.
 - **Socket.io:** Powers real-time features.
-- **Prisma ORM:** Type-safe database access for SQLite.
+- **Prisma ORM:** Type-safe database access for PostgreSQL/SQLite.
+- **Nodemailer:** Handles transactional emails.
+- **Node-cron:** Manages scheduled system maintenance.
 - **JWT:** Secure authentication.
 
 ### **Frontend**
@@ -69,6 +72,8 @@ notion-clone-project/
 │   ├── src/
 │   │   ├── middleware/     # Auth middleware
 │   │   ├── routes/         # API endpoints (auth, workspace, page, file, drawing, chat, kanban)
+│   │   ├── scripts/        # System maintenance (Cleanup)
+│   │   ├── utils/          # Helpers (Mailer)
 │   │   ├── socket/         # Real-time event handlers
 │   │   └── index.ts        # Server entry point
 │   └── uploads/            # Storage for uploaded assets
@@ -77,7 +82,8 @@ notion-clone-project/
 │   │   ├── app/            # Next.js pages
 │   │   ├── components/     # UI components (Chat, Kanban, DrawingCanvas, etc.)
 │   │   └── lib/            # API and Socket clients
-└── docker-compose.yml      # (Optional) Containerization setup
+├── docker-compose.yml      # Containerization setup
+└── .env                    # Root environment variables
 ```
 
 ---
@@ -86,13 +92,13 @@ notion-clone-project/
 
 ### Prerequisites
 
-- Node.js (v18+)
+- Node.js (v20+) or Docker & Docker Compose
 - npm
 
-### Installation & Running
+### Installation & Running (Manual)
 
 1. **Backend Setup:**
-
+   - Configure `backend/.env` with your SMTP and Database credentials.
    ```bash
    cd backend
    npm install
@@ -101,11 +107,21 @@ notion-clone-project/
    ```
 
 2. **Frontend Setup:**
-
+   - Configure `frontend/.env` with your API URLs.
    ```bash
    cd ../frontend
    npm install
    npm run dev
+   ```
+
+### Installation & Running (Docker)
+
+1. **Configure Root `.env`:**
+   - Ensure the root `.env` contains both backend and frontend variables.
+
+2. **Launch:**
+   ```bash
+   docker-compose up --build
    ```
 
 3. **Usage:**

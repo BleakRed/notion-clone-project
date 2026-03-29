@@ -60,8 +60,8 @@ model WorkspaceMember {
   role        String   @default("MEMBER") // OWNER, ADMIN, MEMBER
   joinedAt    DateTime @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
 }
@@ -76,9 +76,9 @@ model Page {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  author      User      @relation(fields: [authorId], references: [id])
-  parent      Page?     @relation("PageHierarchy", fields: [parentId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent      Page?     @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children    Page[]    @relation("PageHierarchy")
 }
 
@@ -90,8 +90,8 @@ model Folder {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  parent      Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent      Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children    Folder[]  @relation("FolderHierarchy")
   files       File[]
 }
@@ -108,9 +108,9 @@ model File {
   folderId    String?  // Linked to Folder
   createdAt   DateTime @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  uploader    User      @relation(fields: [uploaderId], references: [id])
-  folder      Folder?   @relation(fields: [folderId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploader    User      @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
 }
 
 model Drawing {
@@ -122,8 +122,8 @@ model Drawing {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  author      User      @relation("DrawingAuthor", fields: [authorId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author      User      @relation("DrawingAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model ChatRoom {
@@ -132,7 +132,7 @@ model ChatRoom {
   workspaceId String
   createdAt   DateTime @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   messages    ChatMessage[]
 }
 
@@ -144,8 +144,8 @@ model ChatMessage {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id])
-  author      User     @relation("ChatAuthor", fields: [authorId], references: [id])
+  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  author      User     @relation("ChatAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model KanbanBoard {
@@ -155,7 +155,7 @@ model KanbanBoard {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   columns     KanbanColumn[]
 }
 
@@ -168,7 +168,7 @@ model KanbanColumn {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board     KanbanBoard @relation(fields: [boardId], references: [id])
+  board     KanbanBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
   cards     KanbanCard[]
 }
 
@@ -182,10 +182,11 @@ model KanbanCard {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  column      KanbanColumn @relation(fields: [columnId], references: [id])
-  author      User         @relation("Author", fields: [authorId], references: [id])
+  column      KanbanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  author      User         @relation("Author", fields: [authorId], references: [id], onDelete: Cascade)
   assignees   User[]       @relation("CardAssignees")
 }
+
 
 model Report {
   id          String   @id @default(uuid())
