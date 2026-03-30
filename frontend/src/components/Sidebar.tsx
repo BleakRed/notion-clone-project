@@ -1,12 +1,13 @@
 'use client';
 
 import { 
-  Home, UserMinus, Plus, LogOut, Sun, Moon, User as UserIcon, 
+  Home, UserMinus, Plus, LogOut, Sun, Moon, 
   Settings, Send, Menu, X, FileText, HardDrive, Palette,
   MessageSquare, Layout, ChevronRight, UserPlus
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import Avatar from './Avatar';
 
 interface SidebarProps {
   user: any;
@@ -73,12 +74,13 @@ export default function Sidebar({
       `}>
         <div className="flex justify-between items-center mb-6 px-1">
           <div className="flex items-center gap-2 group cursor-pointer" onClick={onToggleProfile}>
-             <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-white dark:border-slate-700 overflow-hidden shadow-sm flex items-center justify-center relative">
-                 {user?.avatarUrl ? (
-                     <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                 ) : (
-                     <UserIcon className="text-slate-400" size={20} />
-                 )}
+             <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-white dark:border-slate-700 overflow-hidden shadow-sm relative">
+                 <Avatar 
+                    src={user?.avatarUrl} 
+                    className="w-full h-full" 
+                    fallbackText={user?.username || user?.email}
+                    size={20}
+                 />
                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                      <Settings size={14} className="text-white" />
                  </div>
@@ -226,14 +228,13 @@ export default function Sidebar({
             {members.map((m: any) => (
               <div key={m.userId} className="flex justify-between items-center text-xs group">
                 <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 border dark:border-slate-700">
-                        {m.user.avatarUrl ? (
-                            <img src={m.user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-slate-400">
-                                {m.user.username?.[0] || m.user.email[0].toUpperCase()}
-                            </div>
-                        )}
+                    <div className="w-6 h-6 rounded-full overflow-hidden border dark:border-slate-700">
+                        <Avatar 
+                            src={m.user.avatarUrl} 
+                            className="w-full h-full" 
+                            fallbackText={m.user.username || m.user.email}
+                            size={12}
+                        />
                     </div>
                     <span className="truncate text-slate-600 dark:text-slate-400 font-medium">{m.user.username || m.user.email.split('@')[0]}</span>
                 </div>

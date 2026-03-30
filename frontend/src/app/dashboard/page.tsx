@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import api from '../../lib/api';
-import { Layout, Plus, LogOut, ChevronRight, User as UserIcon, Settings, Search, Grid, List as ListIcon, Sun, Moon } from 'lucide-react';
+import { Layout, Plus, LogOut, ChevronRight, Settings, Search, Grid, List as ListIcon, Sun, Moon } from 'lucide-react';
+import Avatar from '../../components/Avatar';
 
 interface Workspace {
   id: string;
@@ -102,12 +103,13 @@ export default function Dashboard() {
                 {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 border dark:border-slate-700">
-               <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 overflow-hidden border dark:border-slate-600 flex items-center justify-center">
-                    {user?.avatarUrl ? (
-                        <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                    ) : (
-                        <UserIcon size={16} />
-                    )}
+               <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 overflow-hidden border dark:border-slate-600 relative">
+                    <Avatar 
+                        src={user?.avatarUrl} 
+                        className="w-full h-full" 
+                        fallbackText={user?.username || user?.email}
+                        size={16}
+                    />
                </div>
                <span className="text-sm font-bold pr-2">{user?.username || user?.email.split('@')[0]}</span>
             </div>
@@ -197,13 +199,12 @@ export default function Dashboard() {
                                                 className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 overflow-hidden relative group/avatar"
                                                 title={m.user.username || m.user.email.split('@')[0]}
                                             >
-                                                {m.user.avatarUrl ? (
-                                                    <img src={m.user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
-                                                        {m.user.username?.[0] || m.user.email[0]}
-                                                    </div>
-                                                )}
+                                                <Avatar 
+                                                    src={m.user.avatarUrl} 
+                                                    className="w-full h-full" 
+                                                    fallbackText={m.user.username || m.user.email}
+                                                    size={10}
+                                                />
                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
                                                     <span className="text-[6px] text-white font-bold truncate px-0.5">{(m.user.username || m.user.email.split('@')[0]).slice(0, 5)}</span>
                                                 </div>
@@ -212,11 +213,6 @@ export default function Dashboard() {
                                         {w.members?.length > 3 && (
                                             <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-black text-slate-400">
                                                 +{w.members.length - 3}
-                                            </div>
-                                        )}
-                                        {(!w.members || w.members.length === 0) && (
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-slate-300">
-                                                <UserIcon size={14} />
                                             </div>
                                         )}
                                     </div>

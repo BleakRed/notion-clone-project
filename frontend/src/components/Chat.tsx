@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, User as UserIcon, Clock, Edit2, Trash2, X, Check } from 'lucide-react';
+import { Send, Clock, Edit2, Trash2, X, Check } from 'lucide-react';
 import api from '../lib/api';
 import { socket } from '../lib/socket';
+import Avatar from './Avatar';
 
 interface Message {
     id: string;
@@ -114,12 +115,13 @@ export default function Chat({ workspaceId, roomId, user, roomName }: { workspac
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scrollbar-thin">
                 {messages.map((msg) => (
                     <div key={msg.id} className={`flex gap-4 group ${msg.author.id === user?.id ? 'flex-row-reverse' : ''}`}>
-                        <div className="flex-shrink-0 w-10 h-10 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-white dark:border-slate-700 shadow-sm flex items-center justify-center">
-                            {msg.author.avatarUrl ? (
-                                <img src={msg.author.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                <UserIcon className="text-slate-400" size={20} />
-                            )}
+                        <div className="flex-shrink-0 w-10 h-10 rounded-2xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-sm">
+                            <Avatar 
+                                src={msg.author.avatarUrl} 
+                                size={20} 
+                                className="w-full h-full" 
+                                fallbackText={msg.author.username || msg.author.email}
+                            />
                         </div>
                         
                         <div className={`max-w-[80%] md:max-w-[70%] flex flex-col ${msg.author.id === user?.id ? 'items-end' : 'items-start'}`}>
@@ -129,7 +131,7 @@ export default function Chat({ workspaceId, roomId, user, roomName }: { workspac
                                 </span>
                                 <span className="text-[10px] text-slate-400 flex items-center gap-1 font-bold">
                                     <Clock size={10} /> {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    {msg.updatedAt && <span className="ml-1">(edited)</span>}
+                                    {msg.updatedAt && new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 1000 && <span className="ml-1">(edited)</span>}
                                 </span>
                             </div>
                             

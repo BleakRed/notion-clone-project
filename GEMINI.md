@@ -16,6 +16,8 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **Security**: Never commit `.env` files or sensitive credentials.
 - **Caret-Based Cursors**: Collaborative cursors in the editor MUST track the **typing caret position** (insertion point), not the mouse pointer. Use the `getCaretCoordinates` helper for high precision.
 - **Socket Isolation**: Always ensure `join-room` and `leave-room` logic is implemented for collaborative components (Editor, Canvas, Chat, Kanban) to prevent cross-workspace contamination.
+- **Image Resilience**: Always use the `Avatar` component for user profiles to handle broken image links (common in transient cloud environments like Render) with icon/initial fallbacks.
+- **Chat Logic**: The "(edited)" tag in chat MUST only appear if `updatedAt` is more than **1 second** after `createdAt` to prevent false positives on initial send.
 
 ## ✨ Implemented Features
 - **Adaptive Dashboard**: Responsive grid showing workspaces with real-time member avatars and "+N" counts.
@@ -68,4 +70,4 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **Database Status**: Managed via `prisma db push`. Schema includes `Folder`, `File`, `Drawing`, `ChatMessage`, `KanbanBoard`, `KanbanColumn`, and `KanbanCard`.
 
 ---
-*Last Updated: Sunday, March 29, 2026*
+*Last Updated: Monday, March 30, 2026*
