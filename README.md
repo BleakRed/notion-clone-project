@@ -51,6 +51,7 @@ This project is a full-stack, real-time collaborative workspace application insp
 - **Node.js & Express:** Robust REST API.
 - **Socket.io:** Powers real-time features.
 - **Prisma ORM:** Type-safe database access for PostgreSQL/SQLite.
+- **Supabase Storage:** Provides **1GB of persistent file storage** for uploads (crucial for Render's free tier).
 - **Nodemailer:** Handles transactional emails.
 - **Node-cron:** Manages scheduled system maintenance.
 - **JWT:** Secure authentication.

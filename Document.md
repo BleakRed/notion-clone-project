@@ -182,6 +182,10 @@ package "Backend (Node.js/Express)" {
   [Multer Upload]
 }
 
+database "Supabase Storage" {
+  [Persistent Files]
+}
+
 database "PostgreSQL" {
   [Workspace Data]
 }
@@ -191,6 +195,7 @@ database "PostgreSQL" {
 [App Router] --> [Auth Middleware] : HTTP API
 [Auth Middleware] --> [Prisma Client]
 [Prisma Client] --> [Workspace Data]
+[Multer Upload] --> [Persistent Files] : S3 Protocol
 @enduml
 ```
 
@@ -206,19 +211,21 @@ node "Cloud / Docker Host" {
     [Express API]
     [Socket.io Server]
   }
-  
+}
+
+node "Supabase Cloud" {
   node "Database Container" {
     [PostgreSQL Instance]
   }
   
-  node "Storage" {
+  node "Object Storage" {
     [Uploaded Files]
   }
 }
 
 [Next.js App] -- [Express API] : HTTPS / WSS
 [Express API] -- [PostgreSQL Instance] : TCP/IP (Prisma)
-[Express API] -- [Uploaded Files] : FS
+[Express API] -- [Uploaded Files] : HTTPS
 @enduml
 ```
 
