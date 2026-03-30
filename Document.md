@@ -13,7 +13,7 @@ This document provides a comprehensive technical overview of the Notion Clone pr
 - **GitHub-like File Explorer**: Upload, download, and preview files with syntax highlighting for code.
 - **Collaborative Drawing Canvas**: Real-time sketching with room-based isolation and state synchronization.
 - **Team Chat**: Instant messaging within workspaces.
-- **Kanban Boards**: Task management with drag-and-drop, multi-assignment, and custom column colors.
+- **Kanban Boards**: Task management with drag-and-drop, multi-assignment, and custom column colors. Features **silent background synchronization** for all board actions (moving, adding, or deleting cards) to ensure a smooth, non-disruptive "live" experience.
 - **Profile Management**: Update user profile details (avatar, username).
 
 ### 🎬 Key Scenarios

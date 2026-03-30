@@ -28,6 +28,7 @@ This project is a full-stack, real-time collaborative workspace application insp
 
 - **Real-time Chat:** Instant messaging within the workspace to coordinate with team members.
 - **Task Management:** Create multiple Kanban boards with customizable columns to track project progress.
+- **Smooth Updates:** Features **silent background refreshes** for card moves and task updates, eliminating flickering and providing a seamless "live" experience.
 
 ### 5. **Modern UI/UX & Responsiveness**
 

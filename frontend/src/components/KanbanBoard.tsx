@@ -68,7 +68,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         if (boardId) {
             socket.emit('join-kanban', boardId);
             socket.on('kanban-updated', () => {
-                fetchBoardDetails(boardId);
+                fetchBoardDetails(boardId, true);
             });
             return () => {
                 socket.emit('leave-kanban', boardId);
@@ -94,9 +94,9 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         } catch (err) {}
     };
 
-    const fetchBoardDetails = async (id: string) => {
+    const fetchBoardDetails = async (id: string, silent = false) => {
         try {
-            setLoading(true);
+            if (!silent && !selectedBoard) setLoading(true);
             const { data } = await api.get(`/kanban/board/${id}`);
             setSelectedBoard(data);
         } catch (err) {} finally {
@@ -110,7 +110,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         try {
             await api.post(`/kanban/columns/${columnId}/cards`, { content });
             socket.emit('update-kanban', boardId);
-            fetchBoardDetails(boardId);
+            fetchBoardDetails(boardId, true);
         } catch (err) {}
     };
 
@@ -119,7 +119,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         try {
             await api.put(`/kanban/cards/${editingCard.id}`, cardEditData);
             socket.emit('update-kanban', boardId);
-            fetchBoardDetails(boardId);
+            fetchBoardDetails(boardId, true);
             setEditingCard(null);
         } catch (err) {}
     };
@@ -128,7 +128,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         try {
             await api.put(`/kanban/cards/${cardId}`, { columnId: targetColumnId });
             socket.emit('update-kanban', boardId);
-            fetchBoardDetails(boardId);
+            fetchBoardDetails(boardId, true);
         } catch (err) {}
     };
 
@@ -136,7 +136,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         try {
             const { data } = await api.put(`/kanban/cards/${cardId}/assign`, { userId });
             socket.emit('update-kanban', boardId);
-            fetchBoardDetails(boardId);
+            fetchBoardDetails(boardId, true);
             if (editingCard?.id === cardId) {
                 setEditingCard(prev => prev ? { ...prev, assignees: data.assignees } : null);
             }
@@ -148,7 +148,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         try {
             await api.delete(`/kanban/cards/${cardId}`);
             socket.emit('update-kanban', boardId);
-            fetchBoardDetails(boardId);
+            fetchBoardDetails(boardId, true);
         } catch (err) {}
     };
 
@@ -158,7 +158,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         try {
             await api.post(`/kanban/board/${boardId}/columns`, { title });
             socket.emit('update-kanban', boardId);
-            fetchBoardDetails(boardId);
+            fetchBoardDetails(boardId, true);
         } catch (err) {}
     };
 
@@ -166,7 +166,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         try {
             await api.put(`/kanban/columns/${columnId}`, data);
             socket.emit('update-kanban', boardId);
-            fetchBoardDetails(boardId);
+            fetchBoardDetails(boardId, true);
             setEditingColumn(null);
         } catch (err) {}
     };
@@ -184,7 +184,7 @@ export default function KanbanBoard({ workspaceId, boardId }: { workspaceId: str
         moveCard(cardId, targetColumnId);
     };
 
-    if (loading) return <div className="flex-1 flex items-center justify-center font-bold uppercase tracking-widest text-slate-400">Loading Board...</div>;
+    if (loading && !selectedBoard) return <div className="flex-1 flex items-center justify-center font-bold uppercase tracking-widest text-slate-400">Loading Board...</div>;
 
     if (!selectedBoard) return <div className="flex-1 flex items-center justify-center">Board not found</div>;
 

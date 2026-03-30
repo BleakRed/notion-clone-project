@@ -17,6 +17,10 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **Caret-Based Cursors**: Collaborative cursors in the editor MUST track the **typing caret position** (insertion point), not the mouse pointer. Use the `getCaretCoordinates` helper for high precision.
 - **Socket Isolation**: Always ensure `join-room` and `leave-room` logic is implemented for collaborative components (Editor, Canvas, Chat, Kanban) to prevent cross-workspace contamination.
 - **Image Resilience**: Always use the `Avatar` component for user profiles to handle broken image links (common in transient cloud environments like Render) with icon/initial fallbacks.
+- **Persistent Storage (Render Free Tier)**:
+    - **Images**: MUST use **Cloudinary** for persistent image storage. Render's local disk is ephemeral and deletes files on restart.
+    - **Drawings**: Stored as **Base64 strings** directly in the SQLite/Postgres database `data` field to ensure they survive server restarts.
+    - **Files**: Large files should ideally be hosted on a persistent provider (Cloudinary/Supabase) or converted to Base64 for small documents if persistence is critical on the free tier.
 - **Chat Logic**: The "(edited)" tag in chat MUST only appear if `updatedAt` is more than **1 second** after `createdAt` to prevent false positives on initial send.
 
 ## ✨ Implemented Features
