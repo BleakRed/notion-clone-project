@@ -10,8 +10,8 @@ This document provides a comprehensive technical overview of the Notion Clone pr
 - **Authentication**: Users can sign up, log in, verify email, and reset passwords.
 - **Workspace Management**: Owners can create workspaces, invite members, and manage roles.
 - **Collaborative Page Editor**: Real-time Markdown editing with live cursor tracking.
-- **GitHub-like File Explorer**: Upload, download, and preview files with syntax highlighting for code.
-- **Collaborative Drawing Canvas**: Real-time sketching with room-based isolation and state synchronization.
+- **GitHub-like File Explorer**: Upload, download, and preview files with an integrated quick-view modal for images and code (with syntax highlighting).
+- **In-Browser File Editing**: Edit code and text files directly within the file explorer preview.
 - **Team Chat**: Instant messaging within workspaces.
 - **Kanban Boards**: Task management with drag-and-drop, multi-assignment, and custom column colors. Features **silent background synchronization** for all board actions (moving, adding, or deleting cards) to ensure a smooth, non-disruptive "live" experience.
 - **Profile Management**: Update user profile details (avatar, username).
@@ -25,14 +25,14 @@ This document provides a comprehensive technical overview of the Notion Clone pr
 
 ## 📊 2. Database Schema (ERD/ORD)
 
-The system uses **PostgreSQL** (managed via Prisma ORM) to persist workspace data.
+The system uses **PostgreSQL (via Neon.tech)** managed by Prisma ORM to persist workspace data.
 
 ### 📝 Entity Relationship Description
 - **User**: The central entity. Owns workspaces, participates as a member, authors pages, files, and chat messages.
 - **Workspace**: A container for all resources. Has a 1:N relationship with Pages, Files, Folders, Drawings, ChatRooms, and KanbanBoards.
 - **WorkspaceMember**: A join table managing the M:N relationship between Users and Workspaces with specific roles (OWNER, ADMIN, MEMBER).
 - **Page**: Support nested hierarchy (self-relation). Linked to a Workspace and an Author.
-- **Folder/File**: Folders support nested hierarchy. Files belong to a Folder and a Workspace.
+- **Folder/File**: Folders support nested hierarchy. Files belong to a Folder and a Workspace. All file objects are stored in **Supabase Storage**.
 - **Kanban**: A Board contains Columns, which contain Cards. Cards can have multiple Assignees (Users).
 
 ---
@@ -141,7 +141,7 @@ if (Valid Email & Password?) then (yes)
     if (isVerified == false?) then (yes)
       :Run Cleanup Script (Cron);
       :Delete User & Resources (Cascade);
-      :Delete Physical Files;
+      :Delete Cloud Storage Files;
     endif
   end fork
 else (no)
@@ -206,26 +206,28 @@ node "Client Browser" {
   [Next.js App]
 }
 
-node "Cloud / Docker Host" {
+node "Render.com" {
   node "Web Server Container" {
     [Express API]
     [Socket.io Server]
   }
 }
 
-node "Supabase Cloud" {
-  node "Database Container" {
+node "Neon.tech" {
+  node "Database" {
     [PostgreSQL Instance]
   }
-  
+}
+
+node "Supabase Cloud" {
   node "Object Storage" {
-    [Uploaded Files]
+    [Uploaded Files (S3)]
   }
 }
 
 [Next.js App] -- [Express API] : HTTPS / WSS
 [Express API] -- [PostgreSQL Instance] : TCP/IP (Prisma)
-[Express API] -- [Uploaded Files] : HTTPS
+[Express API] -- [Uploaded Files (S3)] : HTTPS
 @enduml
 ```
 

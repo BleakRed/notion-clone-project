@@ -89,6 +89,14 @@ export default function FileExplorer({
     }
   };
 
+  const handleViewImage = (file: File) => {
+    setPreviewFile(file);
+    setLoadingPreview(false);
+    setPreviewContent('');
+    setEditContent('');
+    setIsEditing(false);
+  };
+
   const handleSaveFile = async () => {
     if (!previewFile) return;
     try {
@@ -328,6 +336,15 @@ export default function FileExplorer({
                                         <a href={file.url} target="_blank" rel="noreferrer" className="p-3 bg-white rounded-2xl text-slate-900 hover:scale-110 transition-transform shadow-xl" title="Open in new tab">
                                             <ImageIcon size={20} />
                                         </a>
+                                        {file.type.startsWith('image/') && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleViewImage(file); }}
+                                                className="p-3 bg-white rounded-2xl text-blue-600 hover:scale-110 transition-transform shadow-xl"
+                                                title="Quick View"
+                                            >
+                                                <Eye size={20} />
+                                            </button>
+                                        )}
                                         {(file.type.startsWith('text/') || file.type.includes('javascript') || file.type.includes('json') || file.type.includes('python') || file.name.match(/\.(ts|tsx|py|java|cpp|c|cs|go|rs|php|sh|md)$/)) && (
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleViewCode(file); }}
@@ -457,14 +474,14 @@ export default function FileExplorer({
           </div>
       )}
 
-      {/* Code Preview Modal */}
+      {/* File Preview Modal */}
       {previewFile && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
               <div className="w-full max-w-5xl h-[85vh] bg-slate-900 rounded-[40px] shadow-2xl relative border border-slate-800 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
                   <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-xl z-10">
                       <div className="flex items-center gap-4">
                           <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/20">
-                            <Code size={24} />
+                            {previewFile.type.startsWith('image/') ? <ImageIcon size={24} /> : <Code size={24} />}
                           </div>
                           <div>
                             <h2 className="text-xl font-black text-white">{previewFile.name}</h2>
@@ -474,30 +491,34 @@ export default function FileExplorer({
                           </div>
                       </div>
                       <div className="flex items-center gap-3">
-                          {!isEditing ? (
-                              <button 
-                                onClick={() => setIsEditing(true)}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
-                              >
-                                Edit File
-                              </button>
-                          ) : (
-                              <button 
-                                onClick={handleSaveFile}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-green-500/20"
-                              >
-                                Save Changes
-                              </button>
+                          {!previewFile.type.startsWith('image/') && (
+                              <>
+                                  {!isEditing ? (
+                                      <button 
+                                        onClick={() => setIsEditing(true)}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
+                                      >
+                                        Edit File
+                                      </button>
+                                  ) : (
+                                      <button 
+                                        onClick={handleSaveFile}
+                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-green-500/20"
+                                      >
+                                        Save Changes
+                                      </button>
+                                  )}
+                                  <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(previewContent);
+                                        alert('Copied to clipboard!');
+                                    }}
+                                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700"
+                                  >
+                                    Copy Code
+                                  </button>
+                              </>
                           )}
-                          <button 
-                            onClick={() => {
-                                navigator.clipboard.writeText(previewContent);
-                                alert('Copied to clipboard!');
-                            }}
-                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700"
-                          >
-                            Copy Code
-                          </button>
                           <button onClick={() => setPreviewFile(null)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400">
                               <X size={24} />
                           </button>
@@ -509,6 +530,14 @@ export default function FileExplorer({
                           <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-500">
                               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                               <p className="font-bold uppercase tracking-widest text-[10px]">Loading Content...</p>
+                          </div>
+                      ) : previewFile.type.startsWith('image/') ? (
+                          <div className="h-full flex items-center justify-center">
+                              <img 
+                                src={previewFile.url} 
+                                alt={previewFile.name} 
+                                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl" 
+                              />
                           </div>
                       ) : isEditing ? (
                           <textarea 

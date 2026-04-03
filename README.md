@@ -15,7 +15,8 @@ This project is a full-stack, real-time collaborative workspace application insp
 - **Nested Folders:** Organize project resources with an intuitive folder hierarchy and breadcrumb navigation.
 - **Commit-style Descriptions:** Add descriptions to uploaded files to keep track of resource purpose and history.
 - **Asset Previews:** Visual cards for images and dedicated icons for various file types.
-- **Code Preview:** Built-in syntax highlighter for code files.
+- **Image & Code Quick View:** Built-in modal to preview images and code files (`.py`, `.js`, `.ts`, `.java`, `.json`, etc.) directly in the browser with syntax highlighting.
+- **In-Browser Editing:** Edit text-based files directly within the file preview modal.
 
 ### 3. **Collaborative Drawing Canvas**
 
@@ -39,7 +40,7 @@ This project is a full-stack, real-time collaborative workspace application insp
 ### 6. **Advanced Security & System Maintenance**
 
 - **Email Verification:** Secure account registration with mandatory email verification and password reset functionality via **Nodemailer**.
-- **Automated Cleanup:** Built-in scheduled task (**node-cron**) that deletes unverified accounts after 1 month and removes orphaned workspaces and their physical files to prevent storage bloat.
+- **Automated Cloud Cleanup:** Built-in scheduled task (**node-cron**) that deletes unverified accounts after 1 month and removes orphaned workspaces and their **Supabase Storage** files to prevent storage bloat.
 - **Dockerized Deployment:** Fully containerized environment with **Docker Compose**, supporting easy environment variable management via root `.env`.
 
 ---
@@ -50,8 +51,8 @@ This project is a full-stack, real-time collaborative workspace application insp
 
 - **Node.js & Express:** Robust REST API.
 - **Socket.io:** Powers real-time features.
-- **Prisma ORM:** Type-safe database access for PostgreSQL/SQLite.
-- **Supabase Storage:** Provides **1GB of persistent file storage** for uploads (crucial for Render's free tier).
+- **Prisma ORM:** Type-safe database access for **PostgreSQL (Neon.tech)**.
+- **Supabase Storage:** Provides **1GB of persistent object storage** for uploads (crucial for Render's ephemeral disk).
 - **Nodemailer:** Handles transactional emails.
 - **Node-cron:** Manages scheduled system maintenance.
 - **JWT:** Secure authentication.
@@ -77,8 +78,8 @@ notion-clone-project/
 │   │   ├── scripts/        # System maintenance (Cleanup)
 │   │   ├── utils/          # Helpers (Mailer)
 │   │   ├── socket/         # Real-time event handlers
+│   │   ├── supabase.ts     # Supabase client initialization
 │   │   └── index.ts        # Server entry point
-│   └── uploads/            # Storage for uploaded assets
 ├── frontend/
 │   ├── src/
 │   │   ├── app/            # Next.js pages
@@ -95,12 +96,14 @@ notion-clone-project/
 ### Prerequisites
 
 - Node.js (v20+) or Docker & Docker Compose
+- **Supabase Account**: For persistent file storage (1GB Free Tier).
+- **Neon.tech Account**: For persistent PostgreSQL database.
 - npm
 
 ### Installation & Running (Manual)
 
 1. **Backend Setup:**
-   - Configure `backend/.env` with your SMTP and Database credentials.
+   - Configure `backend/.env` with your SMTP, **PostgreSQL (DATABASE_URL)**, and **Supabase** credentials.
    ```bash
    cd backend
    npm install
@@ -119,7 +122,7 @@ notion-clone-project/
 ### Installation & Running (Docker)
 
 1. **Configure Root `.env`:**
-   - Ensure the root `.env` contains both backend and frontend variables.
+   - Ensure the root `.env` contains both backend and frontend variables, including Supabase and Database credentials.
 
 2. **Launch:**
    ```bash
@@ -135,6 +138,7 @@ notion-clone-project/
 
 ## 🛡 Security & Maintenance
 
-- **Data Integrity:** SQLite persistence with Prisma migrations.
+- **Data Integrity:** PostgreSQL persistence with Prisma migrations.
+- **Persistent Storage:** All user-uploaded assets (images, documents) are stored in **Supabase Storage** to survive server restarts.
 - **Large Payloads:** Express body limits increased to 50MB for high-res drawings.
 - **Isolation:** Collaborative rooms are isolated per workspace/resource to prevent data leaks.

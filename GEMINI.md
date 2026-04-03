@@ -8,7 +8,7 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 ## 🛠 Technical Stack
 - **Frontend**: Next.js (App Router), Tailwind CSS, Socket.io-client, Lucide React, highlight.js.
 - **Backend**: Node.js, Express, Socket.io, Prisma ORM, Multer.
-- **Database**: SQLite (local persistence).
+- **Database**: PostgreSQL (Neon.tech).
 
 ## 📌 Foundational Mandates
 - **Body Limits**: The Express JSON and URL-encoded limits are set to **50mb** to accommodate large base64 strings from high-resolution canvas drawings.
@@ -19,7 +19,7 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **Image Resilience**: Always use the `Avatar` component for user profiles to handle broken image links (common in transient cloud environments like Render) with icon/initial fallbacks.
 - **Persistent Storage (Render Free Tier)**:
     - **Images & Files**: MUST use **Supabase Storage** (1GB Free Tier) for persistent storage. Render's local disk is ephemeral and deletes files on restart.
-    - **Drawings**: Stored as **Base64 strings** directly in the SQLite/Postgres database `data` field to ensure they survive server restarts.
+    - **Drawings**: Stored as **Base64 strings** directly in the Neon.tech (Postgres) database `data` field to ensure they survive server restarts.
 - **Chat Logic**: The "(edited)" tag in chat MUST only appear if `updatedAt` is more than **1 second** after `createdAt` to prevent false positives on initial send.
 
 ## ✨ Implemented Features
@@ -29,7 +29,7 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
     - Secure password reset flow with token expiration.
 - **Automated System Maintenance**:
     - **Cleanup Script**: Daily scheduled task via **node-cron** that removes unverified users (older than 1 month) and orphaned workspaces.
-    - **Physical File Deletion**: Automated removal of local storage files when associated database records are deleted.
+    - **Cloud Resource Deletion**: Automated removal of **Supabase Storage** files when associated database records are deleted.
 - **Dockerized Architecture**:
     - Standardized environment with **Docker Compose**.
     - Root `.env` synchronization for seamless build-time and run-time configuration.
@@ -41,7 +41,9 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **GitHub-like File Explorer**:
     - Nested folder support with breadcrumb navigation.
     - File descriptions (commit-style) and search functionality.
-    - **Code Preview**: Syntax-highlighted viewer for `.py`, `.js`, `.ts`, `.java`, `.json`, etc., using `highlight.js`.
+    - **Integrated Preview Modal**: Quick-view for images and code files (`.py`, `.js`, `.ts`, `.java`, `.json`, etc.).
+    - **Code Preview & Editing**: Syntax-highlighted viewer using `highlight.js` with built-in text editing and saving.
+    - **Persistent Cloud Storage**: All uploads, updates, and deletions are handled via **Supabase Storage**.
 - **Collaborative Drawing Canvas**:
     - Real-time stroke synchronization with room-based isolation.
     - **Isolated Editing**: Loading a saved drawing now joins a dedicated room (`drawing-saved-{id}`), preventing interference with the general workspace canvas.
@@ -70,7 +72,7 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
     - Chat: `join-chat` (room: `chat-{workspaceId}`).
     - Kanban: `join-kanban` (room: `kanban-{boardId}`).
 - **Cursor Logic**: Cursors are rendered inside a `relative` wrapper around the `textarea` to ensure they follow scroll and layout changes perfectly.
-- **Database Status**: Managed via `prisma db push`. Schema includes `Folder`, `File`, `Drawing`, `ChatMessage`, `KanbanBoard`, `KanbanColumn`, and `KanbanCard`.
+- **Database Status**: Managed via `prisma db push` on **Neon.tech (PostgreSQL)**. Schema includes `Folder`, `File`, `Drawing`, `ChatMessage`, `KanbanBoard`, `KanbanColumn`, and `KanbanCard`.
 
 ---
-*Last Updated: Monday, March 30, 2026*
+*Last Updated: Friday, April 3, 2026*
