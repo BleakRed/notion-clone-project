@@ -3,37 +3,38 @@
 
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  // binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id             String   @id @default(uuid())
-  email          String   @unique
-  password       String
-  name           String?
-  username       String?  @unique
-  avatarUrl      String?
-  isVerified     Boolean  @default(false)
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String
+  name              String?
+  username          String?   @unique
+  avatarUrl         String?
+  isVerified        Boolean   @default(false)
   verificationToken String?
-  resetToken     String?
-  resetTokenExpiry DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
   // Relations
-  ownedWorkspaces Workspace[] @relation("Owner")
+  ownedWorkspaces Workspace[]       @relation("Owner")
   memberships     WorkspaceMember[]
   createdPages    Page[]
   uploadedFiles   File[]
-  createdDrawings Drawing[]    @relation("DrawingAuthor")
-  chatMessages    ChatMessage[] @relation("ChatAuthor")
-  kanbanCards     KanbanCard[] @relation("Author")
-  assignedCards   KanbanCard[] @relation("CardAssignees")
+  createdDrawings Drawing[]         @relation("DrawingAuthor")
+  chatMessages    ChatMessage[]     @relation("ChatAuthor")
+  kanbanCards     KanbanCard[]      @relation("Author")
+  assignedCards   KanbanCard[]      @relation("CardAssignees")
 }
 
 model Workspace {
@@ -42,13 +43,13 @@ model Workspace {
   ownerId   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  owner     User     @relation("Owner", fields: [ownerId], references: [id])
-  members   WorkspaceMember[]
-  pages     Page[]
-  files     File[]
-  folders   Folder[]
-  drawings  Drawing[]
+
+  owner        User              @relation("Owner", fields: [ownerId], references: [id])
+  members      WorkspaceMember[]
+  pages        Page[]
+  files        File[]
+  folders      Folder[]
+  drawings     Drawing[]
   chatRooms    ChatRoom[]
   kanbanBoards KanbanBoard[]
 }
@@ -60,8 +61,8 @@ model WorkspaceMember {
   role        String   @default("MEMBER") // OWNER, ADMIN, MEMBER
   joinedAt    DateTime @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
 }
@@ -72,28 +73,28 @@ model Page {
   content     String   @default("")
   workspaceId String
   authorId    String
-  parentId    String?  // For nesting
+  parentId    String? // For nesting
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent      Page?     @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Page[]    @relation("PageHierarchy")
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Page?     @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Page[]    @relation("PageHierarchy")
 }
 
 model Folder {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   workspaceId String
-  parentId    String?   // For nesting folders
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  parentId    String? // For nesting folders
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  parent      Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Folder[]  @relation("FolderHierarchy")
-  files       File[]
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent    Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[]  @relation("FolderHierarchy")
+  files     File[]
 }
 
 model File {
@@ -102,28 +103,28 @@ model File {
   url         String
   size        Int
   type        String
-  description String?  // Added for GitHub-like feel
+  description String? // Added for GitHub-like feel
   workspaceId String
   uploaderId  String
-  folderId    String?  // Linked to Folder
+  folderId    String? // Linked to Folder
   createdAt   DateTime @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  uploader    User      @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
-  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploader  User      @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  folder    Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
 }
 
 model Drawing {
   id          String   @id @default(uuid())
   title       String   @default("Untitled Drawing")
-  data        String   // JSON string of drawing paths/actions
+  data        String // JSON string of drawing paths/actions
   workspaceId String
   authorId    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  author      User      @relation("DrawingAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author    User      @relation("DrawingAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model ChatRoom {
@@ -132,20 +133,20 @@ model ChatRoom {
   workspaceId String
   createdAt   DateTime @default(now())
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  messages    ChatMessage[]
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
 }
 
 model ChatMessage {
-  id          String   @id @default(uuid())
-  content     String
-  chatRoomId  String
-  authorId    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  content    String
+  chatRoomId String
+  authorId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
-  author      User     @relation("ChatAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  author   User     @relation("ChatAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 }
 
 model KanbanBoard {
@@ -155,8 +156,8 @@ model KanbanBoard {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  columns     KanbanColumn[]
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  columns   KanbanColumn[]
 }
 
 model KanbanColumn {
@@ -168,8 +169,8 @@ model KanbanColumn {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board     KanbanBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  cards     KanbanCard[]
+  board KanbanBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards KanbanCard[]
 }
 
 model KanbanCard {
@@ -182,11 +183,10 @@ model KanbanCard {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  column      KanbanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  author      User         @relation("Author", fields: [authorId], references: [id], onDelete: Cascade)
-  assignees   User[]       @relation("CardAssignees")
+  column    KanbanColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  author    User         @relation("Author", fields: [authorId], references: [id], onDelete: Cascade)
+  assignees User[]       @relation("CardAssignees")
 }
-
 
 model Report {
   id          String   @id @default(uuid())

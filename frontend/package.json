@@ -16,7 +16,7 @@
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "autoprefixer": "^10.4.24",
-    "axios": "^1.13.5",
+    "axios": "1.13.5",
     "clsx": "^2.1.1",
     "highlight.js": "^11.11.1",
     "js-cookie": "^3.0.5",

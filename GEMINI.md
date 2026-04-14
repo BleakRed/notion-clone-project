@@ -8,7 +8,7 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 ## 🛠 Technical Stack
 - **Frontend**: Next.js (App Router), Tailwind CSS, Socket.io-client, Lucide React, highlight.js.
 - **Backend**: Node.js, Express, Socket.io, Prisma ORM, Multer.
-- **Database**: PostgreSQL (Neon.tech).
+- **Database**: PostgreSQL (Supabase).
 
 ## 📌 Foundational Mandates
 - **Body Limits**: The Express JSON and URL-encoded limits are set to **50mb** to accommodate large base64 strings from high-resolution canvas drawings.
@@ -19,7 +19,7 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
 - **Image Resilience**: Always use the `Avatar` component for user profiles to handle broken image links (common in transient cloud environments like Render) with icon/initial fallbacks.
 - **Persistent Storage (Render Free Tier)**:
     - **Images & Files**: MUST use **Supabase Storage** (1GB Free Tier) for persistent storage. Render's local disk is ephemeral and deletes files on restart.
-    - **Drawings**: Stored as **Base64 strings** directly in the Neon.tech (Postgres) database `data` field to ensure they survive server restarts.
+    - **Drawings**: Stored as **Base64 strings** directly in the Supabase (Postgres) database `data` field to ensure they survive server restarts.
 - **Chat Logic**: The "(edited)" tag in chat MUST only appear if `updatedAt` is more than **1 second** after `createdAt` to prevent false positives on initial send.
 
 ## ✨ Implemented Features
@@ -72,7 +72,7 @@ A full-stack, real-time collaborative workspace (Notes, Files, Drawing, Chat, Ka
     - Chat: `join-chat` (room: `chat-{workspaceId}`).
     - Kanban: `join-kanban` (room: `kanban-{boardId}`).
 - **Cursor Logic**: Cursors are rendered inside a `relative` wrapper around the `textarea` to ensure they follow scroll and layout changes perfectly.
-- **Database Status**: Managed via `prisma db push` on **Neon.tech (PostgreSQL)**. Schema includes `Folder`, `File`, `Drawing`, `ChatMessage`, `KanbanBoard`, `KanbanColumn`, and `KanbanCard`.
+- **Database Status**: Managed via `prisma db push` on **Supabase (PostgreSQL)**. Schema includes `Folder`, `File`, `Drawing`, `ChatMessage`, `KanbanBoard`, `KanbanColumn`, and `KanbanCard`.
 
 ---
-*Last Updated: Friday, April 3, 2026*
+*Last Updated: Wednesday, April 8, 2026*

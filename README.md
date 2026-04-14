@@ -51,7 +51,7 @@ This project is a full-stack, real-time collaborative workspace application insp
 
 - **Node.js & Express:** Robust REST API.
 - **Socket.io:** Powers real-time features.
-- **Prisma ORM:** Type-safe database access for **PostgreSQL (Neon.tech)**.
+- **Prisma ORM:** Type-safe database access for **PostgreSQL (Supabase)**.
 - **Supabase Storage:** Provides **1GB of persistent object storage** for uploads (crucial for Render's ephemeral disk).
 - **Nodemailer:** Handles transactional emails.
 - **Node-cron:** Manages scheduled system maintenance.
@@ -96,8 +96,7 @@ notion-clone-project/
 ### Prerequisites
 
 - Node.js (v20+) or Docker & Docker Compose
-- **Supabase Account**: For persistent file storage (1GB Free Tier).
-- **Neon.tech Account**: For persistent PostgreSQL database.
+- **Supabase Account**: For persistent PostgreSQL database and file storage (1GB Free Tier).
 - npm
 
 ### Installation & Running (Manual)
